@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     reputation_decay_rate: float = 0.001
     min_reputation_for_rewards: float = 0.1
 
+    # Discord
+    discord_webhook_url: str = ""  # empty = notifications disabled
+
     # API
     api_host: str = "0.0.0.0"
     api_port: int = 8000

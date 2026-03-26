@@ -19,6 +19,7 @@ from swarmchain.services.finality import FinalityService
 from swarmchain.services.reward_engine import RewardEngine
 from swarmchain.services.domain_validators import ValidatorRunner
 from swarmchain.services.reputation import ReputationService
+from swarmchain.services.discord_notify import DiscordNotifier
 from swarmchain.config import get_settings
 
 logger = logging.getLogger("swarmchain.controller")
@@ -35,6 +36,7 @@ class BlockController:
         self._running = False
         self.reward_engine = RewardEngine()
         self.reputation_service = ReputationService()
+        self.discord = DiscordNotifier()
 
     async def process_block(self, db: AsyncSession, block: Block) -> str | None:
         """Process a single open block — prune, promote, check finality.
@@ -125,6 +127,34 @@ class BlockController:
         logger.info(f"Block {block.block_id}: {len(rep_updates)} node reputations updated")
 
         await db.flush()
+
+        # Discord notification
+        try:
+            from swarmchain.services.block_anatomy import BlockAnatomyService, HONEY_THRESHOLD, JELLY_THRESHOLD
+            anatomy = await BlockAnatomyService.analyze(db, block.block_id)
+            if block.status == "solved":
+                await self.discord.block_solved(
+                    block_id=block.block_id,
+                    task_id=block.task_id,
+                    solver_node=block.winning_node_id or "unknown",
+                    strategy=anatomy.winning_pair.get("strategy", "unknown") if anatomy.winning_pair else "unknown",
+                    score=block.final_score or 0,
+                    attempt_count=block.attempt_count,
+                    total_energy=anatomy.total_energy,
+                    honey=anatomy.honey_count,
+                    jelly=anatomy.jelly_count,
+                    propolis=anatomy.propolis_count,
+                )
+            elif block.status == "exhausted":
+                await self.discord.block_exhausted(
+                    block_id=block.block_id,
+                    task_id=block.task_id,
+                    best_score=block.final_score or 0,
+                    attempt_count=block.attempt_count,
+                    total_energy=anatomy.total_energy,
+                )
+        except Exception as e:
+            logger.warning(f"Discord notification failed: {e}")
 
     async def run_loop(self) -> None:
         """Background controller loop — processes all open blocks periodically."""

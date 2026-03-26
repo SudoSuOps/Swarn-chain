@@ -7,11 +7,13 @@ from swarmchain.db.engine import get_db
 from swarmchain.db.models import Block, Node, Reward, DatasetSale
 from swarmchain.services.economics import EconomicsEngine
 from swarmchain.services.reputation import ReputationService
+from swarmchain.services.discord_notify import DiscordNotifier
 from swarmchain.api.auth import require_api_key
 
 router = APIRouter()
 economics = EconomicsEngine()
 reputation = ReputationService()
+discord = DiscordNotifier()
 
 
 class DatasetSaleRequest(BaseModel):
@@ -109,3 +111,40 @@ async def get_economic_stats(db: AsyncSession = Depends(get_db)):
             "avg_reputation": round(float(avg_reputation), 4),
         },
     }
+
+
+@router.post("/economics/energy-report", dependencies=[Depends(require_api_key)])
+async def send_energy_report(db: AsyncSession = Depends(get_db)):
+    """Push an energy report to Discord."""
+    # Gather stats
+    total_blocks = (await db.execute(select(func.count(Block.id)))).scalar() or 0
+    solved_blocks = (await db.execute(
+        select(func.count(Block.id)).where(Block.status == "solved")
+    )).scalar() or 0
+
+    total_attempts = (await db.execute(
+        select(func.count()).select_from(Reward)
+    )).scalar() or 0
+
+    total_energy = (await db.execute(
+        select(func.sum(Block.total_energy))
+    )).scalar() or 0
+
+    active_nodes = (await db.execute(
+        select(func.count(Node.id)).where(Node.active == True)
+    )).scalar() or 0
+
+    solve_rate = solved_blocks / max(total_blocks, 1)
+
+    top_nodes = await reputation.get_leaderboard(db, limit=5)
+
+    sent = await discord.energy_report(
+        total_blocks=total_blocks,
+        solved_blocks=solved_blocks,
+        total_attempts=total_attempts,
+        total_energy=float(total_energy),
+        active_nodes=active_nodes,
+        solve_rate=solve_rate,
+        top_nodes=top_nodes,
+    )
+    return {"sent": sent, "total_blocks": total_blocks, "solved_blocks": solved_blocks}

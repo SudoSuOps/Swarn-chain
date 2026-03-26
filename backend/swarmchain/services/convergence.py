@@ -25,6 +25,14 @@ class ConvergenceTracker:
     def __init__(self, window_size: int = DEFAULT_WINDOW_SIZE):
         self.window_size = window_size
         self.discord = DiscordNotifier()
+        self._hedera_anchor = None  # lazy-init to avoid circular imports
+
+    def _get_hedera_anchor(self):
+        """Lazy-load the HederaAnchor service."""
+        if self._hedera_anchor is None:
+            from swarmchain.services.hedera_anchor import HederaAnchor
+            self._hedera_anchor = HederaAnchor.from_settings()
+        return self._hedera_anchor
 
     async def update(self, db: AsyncSession, block_id: str) -> ConvergenceMetric | None:
         """Called after each block seal. Computes window if enough blocks."""
@@ -147,6 +155,20 @@ class ConvergenceTracker:
         )
         db.add(event)
         await db.flush()
+
+        # Hedera HCS anchoring — check if this convergence window triggers an anchor
+        try:
+            anchor = self._get_hedera_anchor()
+            anchor_receipt = await anchor.maybe_anchor(db, total_sealed)
+            if anchor_receipt and anchor_receipt.get("merkle_root"):
+                anchored = anchor_receipt.get("anchored", False)
+                status = "ANCHORED" if anchored else "PENDING"
+                logger.info(
+                    f"Hedera anchor {status} at block {total_sealed}: "
+                    f"root={anchor_receipt['merkle_root'][:18]}..."
+                )
+        except Exception as e:
+            logger.error(f"Hedera anchoring failed (non-fatal): {e}")
 
         # Discord alert
         direction = "DOWN" if delta_cost <= 0 else "UP"

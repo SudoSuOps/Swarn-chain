@@ -1,16 +1,18 @@
 """Tasks API — procedurally generated ARC task catalog.
 
 Exposes the deterministic ARC task generator over HTTP:
-  GET /tasks       — list tasks (paginated, filterable)
-  GET /tasks/stats — catalog summary statistics
-  GET /tasks/{id}  — full task payload by ID
+  GET /tasks            — list Tier 1 tasks (paginated, filterable)
+  GET /tasks/stats      — catalog summary statistics
+  GET /tasks/benchmark  — full 200-task benchmark set grouped by tier
+  GET /tasks/tier/{tier} — tasks for a specific tier (1, 2, 3, or holdout)
+  GET /tasks/{id}       — full task payload by ID
 """
 from __future__ import annotations
 
 from collections import Counter
 from fastapi import APIRouter, HTTPException, Query
 
-from swarmchain.tasks.arc_generator import ARCTaskGenerator, TRANSFORM_TYPES
+from swarmchain.tasks.arc_generator import ARCTaskGenerator, TRANSFORM_TYPES, TIER3_TASK_TYPES
 
 router = APIRouter()
 
@@ -25,9 +27,15 @@ _CATALOG_BASE_SEED = 42
 _catalog_cache: list[dict] | None = None
 _catalog_index: dict[str, dict] | None = None
 
+# Lazy-loaded tier caches
+_tier2_cache: list[dict] | None = None
+_tier3_cache: list[dict] | None = None
+_holdout_cache: list[dict] | None = None
+_benchmark_cache: dict | None = None
+
 
 def _get_catalog() -> list[dict]:
-    """Return the cached catalog, generating it on first call."""
+    """Return the cached Tier 1 catalog, generating it on first call."""
     global _catalog_cache
     if _catalog_cache is None:
         _catalog_cache = _generator.generate_catalog(
@@ -36,11 +44,43 @@ def _get_catalog() -> list[dict]:
     return _catalog_cache
 
 
+def _get_tier2_catalog() -> list[dict]:
+    """Return the cached Tier 2 catalog."""
+    global _tier2_cache
+    if _tier2_cache is None:
+        _tier2_cache = _generator.generate_tier2_catalog(count=50, base_seed=2000)
+    return _tier2_cache
+
+
+def _get_tier3_catalog() -> list[dict]:
+    """Return the cached Tier 3 catalog."""
+    global _tier3_cache
+    if _tier3_cache is None:
+        _tier3_cache = _generator.generate_tier3_catalog(count=50, base_seed=5000)
+    return _tier3_cache
+
+
+def _get_holdout_catalog() -> list[dict]:
+    """Return the cached holdout catalog."""
+    global _holdout_cache
+    if _holdout_cache is None:
+        _holdout_cache = _generator.generate_holdout_catalog(count=50, base_seed=10000)
+    return _holdout_cache
+
+
 def _get_index() -> dict[str, dict]:
-    """Return task_id -> task dict index for O(1) lookup."""
+    """Return task_id -> task dict index for O(1) lookup across all tiers."""
     global _catalog_index
     if _catalog_index is None:
-        _catalog_index = {t["task_id"]: t for t in _get_catalog()}
+        _catalog_index = {}
+        for task in _get_catalog():
+            _catalog_index[task["task_id"]] = task
+        for task in _get_tier2_catalog():
+            _catalog_index[task["task_id"]] = task
+        for task in _get_tier3_catalog():
+            _catalog_index[task["task_id"]] = task
+        for task in _get_holdout_catalog():
+            _catalog_index[task["task_id"]] = task
     return _catalog_index
 
 
@@ -87,6 +127,88 @@ async def tasks_stats():
         },
         "base_seed": _CATALOG_BASE_SEED,
         "catalog_count": _CATALOG_COUNT,
+    }
+
+
+@router.get("/benchmark")
+async def tasks_benchmark():
+    """Return the full 200-task benchmark set grouped by tier.
+
+    Returns:
+        {
+            "tier1": [...50 tasks],
+            "tier2": [...50 tasks],
+            "tier3": [...50 tasks],
+            "holdout": [...50 tasks],
+            "total": 200,
+            "verification": {"total": 200, "passed": 200, "failed": 0, "failures": []}
+        }
+    """
+    global _benchmark_cache
+    if _benchmark_cache is None:
+        benchmark = _generator.generate_full_benchmark()
+
+        # Verify all tasks
+        all_tasks = benchmark["tier1"] + benchmark["tier2"] + benchmark["tier3"] + benchmark["holdout"]
+        verification = _generator.verify_catalog(all_tasks)
+
+        _benchmark_cache = {
+            "tier1": benchmark["tier1"],
+            "tier2": benchmark["tier2"],
+            "tier3": benchmark["tier3"],
+            "holdout": benchmark["holdout"],
+            "total": len(all_tasks),
+            "verification": verification,
+        }
+    return _benchmark_cache
+
+
+@router.get("/tier/{tier}")
+async def tasks_by_tier(
+    tier: str,
+    count: int = Query(default=50, ge=1, le=1000, description="Number of tasks to return"),
+    offset: int = Query(default=0, ge=0, description="Offset into the catalog"),
+):
+    """Return tasks for a specific tier.
+
+    Valid tier values: "1", "2", "3", "holdout"
+    """
+    if tier == "1":
+        catalog = _get_catalog()
+    elif tier == "2":
+        catalog = _get_tier2_catalog()
+    elif tier == "3":
+        catalog = _get_tier3_catalog()
+    elif tier == "holdout":
+        catalog = _get_holdout_catalog()
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown tier '{tier}'. Valid tiers: 1, 2, 3, holdout",
+        )
+
+    total = len(catalog)
+    page = catalog[offset : offset + count]
+
+    # Return summaries (no grids for listing)
+    summaries = [
+        {
+            "task_id": t["task_id"],
+            "description": t["description"],
+            "transform_type": t["transform_type"],
+            "grid_size": t["grid_size"],
+            "seed": t["seed"],
+            "tier": t.get("tier"),
+        }
+        for t in page
+    ]
+
+    return {
+        "tier": tier,
+        "tasks": summaries,
+        "total": total,
+        "count": len(summaries),
+        "offset": offset,
     }
 
 
@@ -141,7 +263,10 @@ async def list_tasks(
 
 @router.get("/{task_id}")
 async def get_task(task_id: str):
-    """Get a specific generated task with full payload (input_grid + expected_output)."""
+    """Get a specific generated task with full payload (input_grid + expected_output).
+
+    Searches across all tiers (Tier 1, 2, 3, and holdout).
+    """
     index = _get_index()
     task = index.get(task_id)
     if task is None:

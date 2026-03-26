@@ -41,6 +41,12 @@ class Settings(BaseSettings):
     orchestration_cost_per_block: float = 0.001  # $ overhead per block
     convergence_window_size: int = 20  # blocks per convergence window
 
+    # Hedera HCS anchoring
+    hedera_operator_id: str = ""  # empty = anchoring disabled
+    hedera_operator_key: str = ""
+    hedera_topic_id: str = "0.0.10291838"
+    hedera_anchor_interval: int = 50  # anchor every N sealed blocks
+
     # Discord
     discord_webhook_url: str = ""  # empty = notifications disabled
 

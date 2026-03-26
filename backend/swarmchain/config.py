@@ -1,6 +1,10 @@
 """Centralized configuration for SwarmChain backend."""
+import logging
 from pydantic_settings import BaseSettings
+from pydantic import model_validator
 from functools import lru_cache
+
+logger = logging.getLogger("swarmchain.config")
 
 
 class Settings(BaseSettings):
@@ -52,6 +56,15 @@ class Settings(BaseSettings):
     ]
 
     model_config = {"env_prefix": "SWARMCHAIN_", "env_file": ".env"}
+
+    @model_validator(mode="after")
+    def validate_reward_percentages(self):
+        total = self.solver_reward_pct + self.lineage_reward_pct + self.exploration_reward_pct + self.efficiency_reward_pct
+        if abs(total - 1.0) > 0.001:
+            raise ValueError(f"Reward percentages must sum to 1.0, got {total}")
+        if not self.api_key:
+            logger.warning("SWARMCHAIN_API_KEY is empty — all mutation endpoints are UNPROTECTED")
+        return self
 
 
 @lru_cache

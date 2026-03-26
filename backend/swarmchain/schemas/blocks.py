@@ -7,9 +7,9 @@ class BlockOpen(BaseModel):
     """Request to open a new reasoning block."""
     task_id: str
     domain: str = "arc"
-    reward_pool: float = 100.0
-    max_attempts: int = 500
-    time_limit_sec: int = 3600
+    reward_pool: float = Field(default=100.0, ge=0.0, le=1_000_000)
+    max_attempts: int = Field(default=500, ge=1, le=100_000)
+    time_limit_sec: int = Field(default=3600, ge=10, le=604_800)  # 10s to 7 days
     task_payload: dict = Field(default_factory=dict)
     metadata: dict | None = None
 

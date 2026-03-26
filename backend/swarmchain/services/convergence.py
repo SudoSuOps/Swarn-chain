@@ -7,6 +7,7 @@ If flat, models aren't improving. If UP, something broke.
 The convergence curve IS the SwarmAlgorithm.
 """
 import logging
+from datetime import timezone
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from swarmchain.db.models import Block, Attempt

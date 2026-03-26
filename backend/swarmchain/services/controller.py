@@ -126,24 +126,33 @@ class BlockController:
         rewards = await self.reward_engine.compute_rewards(db, block)
         logger.info(f"Block {block.block_id}: {len(rewards)} rewards distributed")
 
-        # Compute cost-to-mint
-        cost_record = await CostCalculator.compute(db, block)
-        logger.info(
-            f"Block {block.block_id}: cost=${cost_record.total_cost:.4f} "
-            f"honey={cost_record.honey_count} cost/honey=${cost_record.cost_per_honey:.4f}"
-        )
-
-        # Update reputations
-        rep_updates = await self.reputation_service.update_after_block(db, block.block_id)
-        logger.info(f"Block {block.block_id}: {len(rep_updates)} node reputations updated")
-
-        # Update convergence metrics
-        convergence = await self.convergence_tracker.update(db, block.block_id)
-        if convergence:
+        # Compute cost-to-mint (non-critical — failures logged but don't block finalization)
+        try:
+            cost_record = await CostCalculator.compute(db, block)
             logger.info(
-                f"Convergence: attempts/solve={convergence.avg_attempts_per_solve:.1f} "
-                f"cost/honey=${convergence.avg_cost_per_honey:.4f}"
+                f"Block {block.block_id}: cost=${cost_record.total_cost:.4f} "
+                f"honey={cost_record.honey_count} cost/honey=${cost_record.cost_per_honey:.4f}"
             )
+        except Exception as e:
+            logger.error(f"Block {block.block_id}: cost calculation failed: {e}")
+
+        # Update reputations (non-critical)
+        try:
+            rep_updates = await self.reputation_service.update_after_block(db, block.block_id)
+            logger.info(f"Block {block.block_id}: {len(rep_updates)} node reputations updated")
+        except Exception as e:
+            logger.error(f"Block {block.block_id}: reputation update failed: {e}")
+
+        # Update convergence metrics (non-critical)
+        try:
+            convergence = await self.convergence_tracker.update(db, block.block_id)
+            if convergence:
+                logger.info(
+                    f"Convergence: attempts/solve={convergence.avg_attempts_per_solve:.1f} "
+                    f"cost/honey=${convergence.avg_cost_per_honey:.4f}"
+                )
+        except Exception as e:
+            logger.error(f"Block {block.block_id}: convergence update failed: {e}")
 
         await db.flush()
 
@@ -189,11 +198,14 @@ class BlockController:
                     open_blocks = list(result.scalars().all())
 
                     for block in open_blocks:
-                        new_status = await self.process_block(db, block)
-                        if new_status:
-                            logger.info(f"Block {block.block_id} → {new_status}")
-
-                    await db.commit()
+                        try:
+                            new_status = await self.process_block(db, block)
+                            if new_status:
+                                logger.info(f"Block {block.block_id} → {new_status}")
+                            await db.commit()
+                        except Exception as block_err:
+                            logger.error(f"Block {block.block_id} processing failed: {block_err}", exc_info=True)
+                            await db.rollback()
 
             except Exception as e:
                 logger.error(f"Controller loop error: {e}", exc_info=True)

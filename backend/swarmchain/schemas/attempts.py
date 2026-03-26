@@ -11,8 +11,8 @@ class AttemptSubmit(BaseModel):
     method: str = "unknown"
     strategy_family: str = "random"
     output_json: dict = Field(default_factory=dict)
-    energy_cost: float = 1.0
-    latency_ms: int = 0
+    energy_cost: float = Field(default=1.0, ge=0.0, le=1_000_000)
+    latency_ms: int = Field(default=0, ge=0)
 
 
 class AttemptResponse(BaseModel):

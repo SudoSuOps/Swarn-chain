@@ -1,5 +1,5 @@
 """Block API — open, inspect, and finalize reasoning blocks."""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from swarmchain.db.engine import get_db
@@ -41,8 +41,8 @@ async def open_block(req: BlockOpen, db: AsyncSession = Depends(get_db)):
 async def list_blocks(
     status: str | None = None,
     domain: str | None = None,
-    limit: int = 50,
-    offset: int = 0,
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
     """List blocks with optional status/domain filters."""

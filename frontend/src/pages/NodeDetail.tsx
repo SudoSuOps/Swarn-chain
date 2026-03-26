@@ -117,19 +117,19 @@ export default function NodeDetail() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mt-6">
           <div className="bg-gray-900/50 rounded-lg p-4 text-center">
             <p className="text-2xl font-bold text-white font-mono">
-              {stats?.attempts ?? node.total_attempts}
+              {stats?.total_attempts ?? node.total_attempts}
             </p>
             <p className="text-xs text-gray-500 mt-1">Attempts</p>
           </div>
           <div className="bg-gray-900/50 rounded-lg p-4 text-center">
             <p className="text-2xl font-bold text-green-400 font-mono">
-              {stats?.solves ?? node.total_solves}
+              {stats?.total_solves ?? node.total_solves}
             </p>
             <p className="text-xs text-gray-500 mt-1">Solves</p>
           </div>
           <div className="bg-gray-900/50 rounded-lg p-4 text-center">
             <p className="text-2xl font-bold text-yellow-400 font-mono">
-              {(stats?.rewards ?? node.total_rewards).toFixed(2)}
+              {(stats?.total_rewards ?? node.total_rewards).toFixed(2)}
             </p>
             <p className="text-xs text-gray-500 mt-1">Rewards</p>
           </div>
@@ -178,99 +178,7 @@ export default function NodeDetail() {
         </div>
       </div>
 
-      {/* Recent Attempts */}
-      {stats?.recent_attempts && stats.recent_attempts.length > 0 && (
-        <div className="bg-gray-800/40 border border-gray-700/50 rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">
-            Recent Attempts ({stats.recent_attempts.length})
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-700/50">
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Attempt
-                  </th>
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Block
-                  </th>
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider min-w-[140px]">
-                    Score
-                  </th>
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Method
-                  </th>
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Strategy
-                  </th>
-                  <th className="text-center px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="text-right px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Energy
-                  </th>
-                  <th className="text-right px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Time
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-700/30">
-                {stats.recent_attempts.map((a) => (
-                  <tr key={a.attempt_id} className="table-row-hover">
-                    <td className="px-3 py-2">
-                      <span className="font-mono text-xs text-gray-400">
-                        {a.attempt_id.slice(0, 8)}...
-                      </span>
-                    </td>
-                    <td className="px-3 py-2">
-                      <Link
-                        to={`/blocks/${a.block_id}`}
-                        className="font-mono text-xs text-blue-400 hover:underline"
-                      >
-                        {a.block_id.slice(0, 10)}...
-                      </Link>
-                    </td>
-                    <td className="px-3 py-2">
-                      <ScoreBar score={a.score} height={6} />
-                    </td>
-                    <td className="px-3 py-2 text-xs text-gray-300">
-                      {a.method}
-                    </td>
-                    <td className="px-3 py-2 text-xs text-gray-300">
-                      {a.strategy}
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        {a.promoted && (
-                          <span className="px-1.5 py-0.5 bg-green-500/20 text-green-400 border border-green-500/30 rounded text-[10px] font-semibold">
-                            PROMOTED
-                          </span>
-                        )}
-                        {a.pruned && (
-                          <span className="px-1.5 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30 rounded text-[10px] font-semibold">
-                            PRUNED
-                          </span>
-                        )}
-                        {!a.promoted && !a.pruned && (
-                          <span className="text-gray-600 text-[10px]">
-                            --
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono text-xs text-gray-400">
-                      {a.energy_cost.toFixed(2)}
-                    </td>
-                    <td className="px-3 py-2 text-right text-xs text-gray-500">
-                      {new Date(a.created_at).toLocaleTimeString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {/* Recent Attempts — TODO: add /attempts/node/{id} endpoint */}
     </div>
   );
 }

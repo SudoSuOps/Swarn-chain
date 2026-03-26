@@ -11,6 +11,7 @@ import {
   type Block,
   type Attempt,
   type Reward,
+  type RewardSummary,
   type BlockArtifact,
   type LineageEdge,
   type BlockValidations,
@@ -25,6 +26,7 @@ export default function BlockDetail() {
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [topAttempts, setTopAttempts] = useState<Attempt[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
+  const [rewardSummary, setRewardSummary] = useState<RewardSummary | null>(null);
   const [artifacts, setArtifacts] = useState<BlockArtifact[]>([]);
   const [lineage, setLineage] = useState<LineageEdge[]>([]);
   const [validations, setValidations] = useState<BlockValidations | null>(null);
@@ -38,7 +40,7 @@ export default function BlockDetail() {
       fetchBlock(blockId),
       fetchBlockAttempts(blockId),
       fetchTopAttempts(blockId),
-      fetchBlockRewards(blockId).catch(() => []),
+      fetchBlockRewards(blockId).catch(() => null),
       fetchBlockArtifacts(blockId).catch(() => []),
       fetchBlockLineage(blockId).catch(() => []),
       fetchBlockValidations(blockId).catch(() => null),
@@ -47,7 +49,8 @@ export default function BlockDetail() {
         setBlock(b);
         setAttempts(att);
         setTopAttempts(top);
-        setRewards(rew);
+        setRewardSummary(rew);
+        setRewards(rew?.rewards ?? []);
         setArtifacts(art);
         setLineage(lin);
         setValidations(val);
@@ -142,7 +145,7 @@ export default function BlockDetail() {
               <StatusBadge status={block.status} />
             </div>
             <p className="text-gray-400 text-sm max-w-2xl">
-              {block.task_description}
+              {block.task_payload?.description ?? block.task_id}
             </p>
           </div>
           {block.status === "open" && (
@@ -167,13 +170,13 @@ export default function BlockDetail() {
           <div className="bg-gray-900/50 rounded-lg p-3">
             <p className="text-xs text-gray-500 mb-1">Energy</p>
             <p className="text-sm text-white font-mono">
-              {block.total_energy.toFixed(2)} / {block.energy_budget.toFixed(1)}
+              {block.total_energy.toFixed(2)} / {block.reward_pool.toFixed(1)}
             </p>
           </div>
           <div className="bg-gray-900/50 rounded-lg p-3">
             <p className="text-xs text-gray-500 mb-1">Created</p>
             <p className="text-sm text-white">
-              {new Date(block.created_at).toLocaleString()}
+              {new Date(block.start_time).toLocaleString()}
             </p>
           </div>
         </div>
@@ -194,12 +197,12 @@ export default function BlockDetail() {
                 <GridRenderer grid={block.task_payload.input_grid} />
               </div>
             )}
-            {block.task_payload.output_grid && (
+            {block.task_payload?.expected_output && (
               <div>
                 <p className="text-xs text-gray-400 uppercase tracking-wider mb-2 font-semibold">
                   Expected Output
                 </p>
-                <GridRenderer grid={block.task_payload.output_grid} />
+                <GridRenderer grid={block.task_payload?.expected_output} />
               </div>
             )}
           </div>
@@ -249,12 +252,12 @@ export default function BlockDetail() {
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-gray-500">Strategy</span>
-                    <span className="text-gray-300">{a.strategy}</span>
+                    <span className="text-gray-300">{a.strategy_family}</span>
                   </div>
                 </div>
-                {a.output_grid && (
+                {(a.output_json as any)?.grid && (
                   <div className="mt-3">
-                    <GridRenderer grid={a.output_grid} cellSize={16} />
+                    <GridRenderer grid={(a.output_json as any)?.grid} cellSize={16} />
                   </div>
                 )}
               </div>
@@ -328,7 +331,7 @@ export default function BlockDetail() {
                       {a.method}
                     </td>
                     <td className="px-3 py-2 text-xs text-gray-300">
-                      {a.strategy}
+                      {a.strategy_family}
                     </td>
                     <td className="px-3 py-2 text-center">
                       <div className="flex items-center justify-center gap-1">
@@ -371,7 +374,7 @@ export default function BlockDetail() {
                 className="flex items-center gap-3 bg-gray-900/40 rounded-lg px-4 py-2.5"
               >
                 <span className="font-mono text-xs text-gray-400 min-w-[80px]">
-                  {edge.parent_attempt_id.slice(0, 8)}...
+                  {edge.parent.slice(0, 8)}...
                 </span>
                 <div className="flex items-center gap-2">
                   <svg
@@ -389,7 +392,7 @@ export default function BlockDetail() {
                   </svg>
                 </div>
                 <span className="font-mono text-xs text-gray-400 min-w-[80px]">
-                  {edge.child_attempt_id.slice(0, 8)}...
+                  {edge.child.slice(0, 8)}...
                 </span>
                 <span
                   className={`ml-auto text-xs font-mono font-semibold ${
@@ -404,7 +407,7 @@ export default function BlockDetail() {
                   {edge.delta_score.toFixed(4)}
                 </span>
                 <span className="text-xs text-gray-500 ml-2">
-                  {edge.method}
+                  {edge.delta_score > 0 ? 'improve' : 'regress'}
                 </span>
               </div>
             ))}
@@ -461,7 +464,7 @@ export default function BlockDetail() {
                       </span>
                     </td>
                     <td className="px-3 py-2 text-right font-mono text-white">
-                      {r.amount.toFixed(4)}
+                      {r.reward_amount.toFixed(4)}
                     </td>
                     <td className="px-3 py-2 text-right font-mono text-gray-400">
                       {r.score_basis.toFixed(4)}
@@ -650,15 +653,15 @@ export default function BlockDetail() {
           <div className="space-y-3">
             {artifacts.map((art) => (
               <div
-                key={art.artifact_id}
+                key={art.artifact_type}
                 className="bg-gray-900/50 border border-gray-700/30 rounded-lg overflow-hidden"
               >
                 <button
                   onClick={() =>
                     setExpandedArtifact(
-                      expandedArtifact === art.artifact_id
+                      expandedArtifact === art.artifact_type
                         ? null
-                        : art.artifact_id
+                        : art.artifact_type
                     )
                   }
                   className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-800/30 transition-colors"
@@ -668,7 +671,7 @@ export default function BlockDetail() {
                       {art.artifact_type}
                     </span>
                     <span className="font-mono text-xs text-gray-400">
-                      {art.artifact_id.slice(0, 12)}...
+                      {art.artifact_type.slice(0, 12)}...
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -677,7 +680,7 @@ export default function BlockDetail() {
                     </span>
                     <svg
                       className={`w-4 h-4 text-gray-500 transition-transform ${
-                        expandedArtifact === art.artifact_id
+                        expandedArtifact === art.artifact_type
                           ? "rotate-180"
                           : ""
                       }`}
@@ -694,10 +697,10 @@ export default function BlockDetail() {
                     </svg>
                   </div>
                 </button>
-                {expandedArtifact === art.artifact_id && (
+                {expandedArtifact === art.artifact_type && (
                   <div className="border-t border-gray-700/30 p-4">
                     <pre className="text-xs text-gray-300 bg-gray-950 rounded-lg p-4 overflow-x-auto max-h-96">
-                      {JSON.stringify(art.data, null, 2)}
+                      {JSON.stringify(art.artifact_json, null, 2)}
                     </pre>
                   </div>
                 )}

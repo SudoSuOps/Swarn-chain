@@ -72,19 +72,19 @@ function App() {
               <span className="text-xs text-gray-500">Status</span>
               <span
                 className={`flex items-center gap-1.5 text-xs font-medium ${
-                  health?.status === "ok"
+                  health?.status === "healthy"
                     ? "text-green-400"
                     : "text-yellow-400"
                 }`}
               >
                 <span
                   className={`w-2 h-2 rounded-full ${
-                    health?.status === "ok"
+                    health?.status === "healthy"
                       ? "bg-green-400 pulse-dot"
                       : "bg-yellow-400"
                   }`}
                 />
-                {health?.status === "ok" ? "Online" : "Unknown"}
+                {health?.status === "healthy" ? "Online" : "Unknown"}
               </span>
             </div>
             {metrics && (
@@ -92,19 +92,19 @@ function App() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-500">Blocks</span>
                   <span className="text-xs text-gray-300 font-mono">
-                    {metrics.total_blocks}
+                    {metrics.blocks.total}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-500">Open</span>
                   <span className="text-xs text-blue-400 font-mono">
-                    {metrics.open_blocks}
+                    {metrics.blocks.open}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-500">Nodes</span>
                   <span className="text-xs text-gray-300 font-mono">
-                    {metrics.total_nodes}
+                    {metrics.nodes.total}
                   </span>
                 </div>
               </>

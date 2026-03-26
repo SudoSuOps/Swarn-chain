@@ -14,69 +14,78 @@ async function request<T>(path: string): Promise<T> {
 
 export interface Block {
   block_id: string;
+  task_id: string;
   domain: string;
   status: "open" | "solved" | "exhausted";
-  attempt_count: number;
-  total_energy: number;
-  final_score: number | null;
-  winning_node_id: string | null;
-  task_description: string;
-  task_payload: TaskPayload | null;
-  created_at: string;
-  solved_at: string | null;
-  energy_budget: number;
+  reward_pool: number;
   max_attempts: number;
+  time_limit_sec: number;
+  start_time: string;
+  end_time: string | null;
+  total_energy: number;
+  attempt_count: number;
+  winning_attempt_id: string | null;
+  winning_node_id: string | null;
+  final_score: number | null;
+  elimination_summary: Record<string, unknown> | null;
+  task_payload: TaskPayload | null;
+  metadata: Record<string, unknown> | null;
 }
 
 export interface TaskPayload {
-  input_grid: number[][];
-  output_grid: number[][];
-  metadata?: Record<string, unknown>;
+  input_grid?: number[][];
+  expected_output?: number[][];
+  description?: string;
+  [key: string]: unknown;
 }
 
 export interface Attempt {
   attempt_id: string;
   block_id: string;
   node_id: string;
-  score: number;
+  parent_attempt_id: string | null;
   method: string;
-  strategy: string;
+  strategy_family: string;
+  output_json: Record<string, unknown>;
+  score: number;
+  valid: boolean;
+  energy_cost: number;
+  latency_ms: number;
   promoted: boolean;
   pruned: boolean;
-  energy_cost: number;
-  parent_attempt_id: string | null;
-  output_grid: number[][] | null;
   created_at: string;
+  metadata: Record<string, unknown> | null;
 }
 
 export interface Reward {
+  block_id: string;
   node_id: string;
   reward_type: string;
-  amount: number;
+  reward_amount: number;
   score_basis: number;
-}
-
-export interface LineageEdge {
-  parent_attempt_id: string;
-  child_attempt_id: string;
-  delta_score: number;
-  method: string;
-}
-
-export interface BlockArtifact {
-  artifact_id: string;
-  block_id: string;
-  artifact_type: string;
-  data: unknown;
   created_at: string;
 }
 
-export interface EliminationSummary {
-  total_attempts: number;
-  pruned: number;
-  promoted: number;
-  avg_score: number;
-  max_score: number;
+export interface RewardSummary {
+  block_id: string;
+  total_pool: number;
+  solver_pool: number;
+  lineage_pool: number;
+  exploration_pool: number;
+  efficiency_pool: number;
+  rewards: Reward[];
+}
+
+export interface LineageEdge {
+  parent: string;
+  child: string;
+  delta_score: number;
+}
+
+export interface BlockArtifact {
+  artifact_type: string;
+  artifact_json: Record<string, unknown>;
+  created_at: string;
 }
 
 // ─── Node types ────────────────────────────────────────────────
@@ -85,84 +94,44 @@ export interface Node {
   node_id: string;
   node_type: string;
   hardware_class: string;
+  active: boolean;
+  reputation_score: number;
+  total_energy_used: number;
   total_attempts: number;
   total_solves: number;
   total_rewards: number;
-  reputation_score: number;
   registered_at: string;
+  metadata: Record<string, unknown> | null;
 }
 
 export interface NodeStats {
   node_id: string;
-  attempts: number;
-  solves: number;
-  rewards: number;
+  total_attempts: number;
+  total_solves: number;
+  total_rewards: number;
+  total_energy_used: number;
+  avg_score: number;
   efficiency: number;
   blocks_participated: number;
-  recent_attempts: Attempt[];
 }
 
 // ─── System types ──────────────────────────────────────────────
 
 export interface Metrics {
-  total_blocks: number;
-  open_blocks: number;
-  solved_blocks: number;
-  exhausted_blocks: number;
-  total_attempts: number;
-  total_nodes: number;
-  total_energy_spent: number;
+  blocks: {
+    total: number;
+    open: number;
+    solved: number;
+    exhausted: number;
+  };
+  attempts: { total: number };
+  nodes: { total: number; active: number };
+  total_energy: number;
 }
 
 export interface Health {
   status: string;
-  uptime: number;
-  version: string;
-}
-
-// ─── Block endpoints ───────────────────────────────────────────
-
-export function fetchBlocks(status?: string): Promise<Block[]> {
-  const qs = status && status !== "all" ? `?status=${status}` : "";
-  return request<Block[]>(`/blocks${qs}`);
-}
-
-export function fetchBlock(id: string): Promise<Block> {
-  return request<Block>(`/blocks/${id}`);
-}
-
-export function fetchBlockAttempts(id: string): Promise<Attempt[]> {
-  return request<Attempt[]>(`/blocks/${id}/attempts`);
-}
-
-export function fetchTopAttempts(id: string): Promise<Attempt[]> {
-  return request<Attempt[]>(`/blocks/${id}/top-attempts`);
-}
-
-export function fetchBlockRewards(id: string): Promise<Reward[]> {
-  return request<Reward[]>(`/blocks/${id}/rewards`);
-}
-
-export function fetchBlockArtifacts(id: string): Promise<BlockArtifact[]> {
-  return request<BlockArtifact[]>(`/blocks/${id}/artifacts`);
-}
-
-export function fetchBlockLineage(id: string): Promise<LineageEdge[]> {
-  return request<LineageEdge[]>(`/blocks/${id}/lineage`);
-}
-
-// ─── Node endpoints ────────────────────────────────────────────
-
-export function fetchNodes(): Promise<Node[]> {
-  return request<Node[]>(`/nodes`);
-}
-
-export function fetchNode(id: string): Promise<Node> {
-  return request<Node>(`/nodes/${id}`);
-}
-
-export function fetchNodeStats(id: string): Promise<NodeStats> {
-  return request<NodeStats>(`/nodes/${id}/stats`);
+  service: string;
 }
 
 // ─── Validator types ──────────────────────────────────────────
@@ -186,6 +155,55 @@ export interface BlockValidations {
   domain: string;
   has_validator: boolean;
   decisions: ValidatorDecision[];
+}
+
+// ─── Block endpoints ───────────────────────────────────────────
+
+export async function fetchBlocks(status?: string): Promise<Block[]> {
+  const qs = status && status !== "all" ? `?status=${status}` : "";
+  const data = await request<{ blocks: Block[]; total: number }>(`/blocks${qs}`);
+  return data.blocks;
+}
+
+export function fetchBlock(id: string): Promise<Block> {
+  return request<Block>(`/blocks/${id}`);
+}
+
+export async function fetchBlockAttempts(id: string): Promise<Attempt[]> {
+  const data = await request<{ attempts: Attempt[]; total: number }>(`/attempts/block/${id}`);
+  return data.attempts;
+}
+
+export async function fetchTopAttempts(id: string): Promise<Attempt[]> {
+  const data = await request<{ attempts: Attempt[]; total: number }>(`/attempts/block/${id}/top`);
+  return data.attempts;
+}
+
+export function fetchBlockRewards(id: string): Promise<RewardSummary> {
+  return request<RewardSummary>(`/blocks/${id}/rewards`);
+}
+
+export function fetchBlockArtifacts(id: string): Promise<BlockArtifact[]> {
+  return request<BlockArtifact[]>(`/blocks/${id}/artifacts`);
+}
+
+export async function fetchBlockLineage(id: string): Promise<LineageEdge[]> {
+  const data = await request<{ block_id: string; edges: LineageEdge[] }>(`/attempts/block/${id}/lineage`);
+  return data.edges;
+}
+
+// ─── Node endpoints ────────────────────────────────────────────
+
+export function fetchNodes(): Promise<Node[]> {
+  return request<Node[]>(`/nodes`);
+}
+
+export function fetchNode(id: string): Promise<Node> {
+  return request<Node>(`/nodes/${id}`);
+}
+
+export function fetchNodeStats(id: string): Promise<NodeStats> {
+  return request<NodeStats>(`/nodes/${id}/stats`);
 }
 
 // ─── Validator endpoints ──────────────────────────────────────

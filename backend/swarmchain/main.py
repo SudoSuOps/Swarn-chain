@@ -12,6 +12,7 @@ from swarmchain.api import api_router
 from swarmchain.services.controller import BlockController
 from swarmchain.db.engine import engine
 from swarmchain.db.models import Base
+import swarmchain.db.algorithm  # noqa: F401 — register algorithm models with Base
 
 logging.basicConfig(
     level=logging.INFO,

@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     reputation_decay_rate: float = 0.001
     min_reputation_for_rewards: float = 0.1
 
+    # Cost tracking
+    electricity_rate_per_kwh: float = 0.10  # $/kWh default
+    orchestration_cost_per_block: float = 0.001  # $ overhead per block
+    convergence_window_size: int = 20  # blocks per convergence window
+
     # Discord
     discord_webhook_url: str = ""  # empty = notifications disabled
 

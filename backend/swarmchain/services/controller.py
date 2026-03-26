@@ -20,6 +20,8 @@ from swarmchain.services.reward_engine import RewardEngine
 from swarmchain.services.domain_validators import ValidatorRunner
 from swarmchain.services.reputation import ReputationService
 from swarmchain.services.discord_notify import DiscordNotifier
+from swarmchain.services.cost_calculator import CostCalculator
+from swarmchain.services.convergence import ConvergenceTracker
 from swarmchain.config import get_settings
 
 logger = logging.getLogger("swarmchain.controller")
@@ -37,6 +39,8 @@ class BlockController:
         self.reward_engine = RewardEngine()
         self.reputation_service = ReputationService()
         self.discord = DiscordNotifier()
+        self.cost_calculator = CostCalculator()
+        self.convergence_tracker = ConvergenceTracker(s.convergence_window_size)
 
     async def process_block(self, db: AsyncSession, block: Block) -> str | None:
         """Process a single open block — prune, promote, check finality.
@@ -122,9 +126,24 @@ class BlockController:
         rewards = await self.reward_engine.compute_rewards(db, block)
         logger.info(f"Block {block.block_id}: {len(rewards)} rewards distributed")
 
+        # Compute cost-to-mint
+        cost_record = await CostCalculator.compute(db, block)
+        logger.info(
+            f"Block {block.block_id}: cost=${cost_record.total_cost:.4f} "
+            f"honey={cost_record.honey_count} cost/honey=${cost_record.cost_per_honey:.4f}"
+        )
+
         # Update reputations
         rep_updates = await self.reputation_service.update_after_block(db, block.block_id)
         logger.info(f"Block {block.block_id}: {len(rep_updates)} node reputations updated")
+
+        # Update convergence metrics
+        convergence = await self.convergence_tracker.update(db, block.block_id)
+        if convergence:
+            logger.info(
+                f"Convergence: attempts/solve={convergence.avg_attempts_per_solve:.1f} "
+                f"cost/honey=${convergence.avg_cost_per_honey:.4f}"
+            )
 
         await db.flush()
 

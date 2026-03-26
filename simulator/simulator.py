@@ -127,10 +127,11 @@ class BlockState:
 class SwarmSimulator:
     """Async simulator that drives a swarm of nodes against ARC blocks."""
 
-    def __init__(self, api_url: str, rounds: int, delay: float):
+    def __init__(self, api_url: str, rounds: int, delay: float, api_key: str = ""):
         self.api_url = api_url.rstrip("/")
         self.rounds = rounds
         self.delay = delay
+        self.api_key = api_key
         self.blocks: dict[str, BlockState] = {}
         self.nodes = NODE_PROFILES
         self.stats: dict[str, dict] = {}   # node_id -> {attempts, solves, total_score}
@@ -360,7 +361,8 @@ class SwarmSimulator:
         log.info("Nodes: %s", ", ".join(f"{n.node_id} ({n.node_type})" for n in self.nodes))
         log.info("=" * 60)
 
-        async with httpx.AsyncClient() as client:
+        headers = {"X-API-Key": self.api_key} if self.api_key else {}
+        async with httpx.AsyncClient(headers=headers) as client:
             # Phase 1: Register nodes
             log.info("--- Phase 1: Register nodes ---")
             await self.register_nodes(client)
@@ -462,6 +464,11 @@ def parse_args() -> argparse.Namespace:
         default=0.1,
         help="Delay between rounds in seconds (default: 0.1)",
     )
+    parser.add_argument(
+        "--api-key",
+        default="",
+        help="API key for authenticated endpoints (X-API-Key header)",
+    )
     return parser.parse_args()
 
 
@@ -471,6 +478,7 @@ def main() -> None:
         api_url=args.api_url,
         rounds=args.rounds,
         delay=args.delay,
+        api_key=args.api_key,
     )
     asyncio.run(sim.run())
 

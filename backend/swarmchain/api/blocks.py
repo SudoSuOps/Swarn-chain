@@ -108,6 +108,17 @@ async def get_block_artifacts(block_id: str, db: AsyncSession = Depends(get_db))
     ]
 
 
+@router.get("/{block_id}/anatomy")
+async def get_block_anatomy(block_id: str, db: AsyncSession = Depends(get_db)):
+    """Get the full anatomy of a sealed block — honey, jelly, propolis, convergence math."""
+    from swarmchain.services.block_anatomy import BlockAnatomyService
+    try:
+        anatomy = await BlockAnatomyService.analyze(db, block_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    return anatomy.to_dict()
+
+
 async def _get_block_or_404(block_id: str, db: AsyncSession) -> Block:
     result = await db.execute(select(Block).where(Block.block_id == block_id))
     block = result.scalar_one_or_none()

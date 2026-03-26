@@ -7,12 +7,13 @@ from swarmchain.db.models import Block, BlockArtifact
 from swarmchain.schemas.blocks import BlockOpen, BlockResponse, BlockListResponse, BlockFinalize
 from swarmchain.services.controller import BlockController
 from swarmchain.tasks.arc_tasks import get_task_payload
+from swarmchain.api.auth import require_api_key
 
 router = APIRouter()
 controller = BlockController()
 
 
-@router.post("/open", response_model=BlockResponse)
+@router.post("/open", response_model=BlockResponse, dependencies=[Depends(require_api_key)])
 async def open_block(req: BlockOpen, db: AsyncSession = Depends(get_db)):
     """Open a new reasoning block for distributed solving."""
     # If ARC domain and no task_payload, load from task catalog
@@ -72,7 +73,7 @@ async def get_block(block_id: str, db: AsyncSession = Depends(get_db)):
     return _to_response(block)
 
 
-@router.post("/{block_id}/finalize", response_model=BlockResponse)
+@router.post("/{block_id}/finalize", response_model=BlockResponse, dependencies=[Depends(require_api_key)])
 async def finalize_block(block_id: str, req: BlockFinalize, db: AsyncSession = Depends(get_db)):
     """Manually trigger finalization for a block."""
     block = await _get_block_or_404(block_id, db)

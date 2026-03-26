@@ -7,11 +7,12 @@ from swarmchain.db.models import Block, Attempt, Node
 from swarmchain.schemas.attempts import AttemptSubmit, AttemptResponse, AttemptListResponse
 from swarmchain.services.verifier import get_verifier
 from swarmchain.services.lineage import LineageService
+from swarmchain.api.auth import require_api_key
 
 router = APIRouter()
 
 
-@router.post("", response_model=AttemptResponse)
+@router.post("", response_model=AttemptResponse, dependencies=[Depends(require_api_key)])
 async def submit_attempt(req: AttemptSubmit, db: AsyncSession = Depends(get_db)):
     """Submit a reasoning attempt against a block.
 

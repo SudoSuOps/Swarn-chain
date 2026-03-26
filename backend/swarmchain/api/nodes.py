@@ -5,11 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from swarmchain.db.engine import get_db
 from swarmchain.db.models import Node, Attempt
 from swarmchain.schemas.nodes import NodeRegister, NodeResponse, NodeStats
+from swarmchain.api.auth import require_api_key
 
 router = APIRouter()
 
 
-@router.post("/register", response_model=NodeResponse)
+@router.post("/register", response_model=NodeResponse, dependencies=[Depends(require_api_key)])
 async def register_node(req: NodeRegister, db: AsyncSession = Depends(get_db)):
     """Register a new compute node in the swarm."""
     # Check for duplicate

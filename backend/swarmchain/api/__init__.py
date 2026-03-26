@@ -6,6 +6,7 @@ from .rewards import router as rewards_router
 from .validators import router as validators_router
 from .economics import router as economics_router
 from .health import router as health_router
+from .tasks import router as tasks_router
 
 api_router = APIRouter()
 api_router.include_router(blocks_router, prefix="/blocks", tags=["blocks"])
@@ -15,3 +16,4 @@ api_router.include_router(rewards_router, tags=["rewards"])
 api_router.include_router(validators_router, tags=["validators"])
 api_router.include_router(economics_router, tags=["economics"])
 api_router.include_router(health_router, tags=["health"])
+api_router.include_router(tasks_router, prefix="/tasks", tags=["tasks"])

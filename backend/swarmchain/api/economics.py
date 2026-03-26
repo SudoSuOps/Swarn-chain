@@ -7,6 +7,7 @@ from swarmchain.db.engine import get_db
 from swarmchain.db.models import Block, Node, Reward, DatasetSale
 from swarmchain.services.economics import EconomicsEngine
 from swarmchain.services.reputation import ReputationService
+from swarmchain.api.auth import require_api_key
 
 router = APIRouter()
 economics = EconomicsEngine()
@@ -20,7 +21,7 @@ class DatasetSaleRequest(BaseModel):
     platform_fee_pct: float = 0.10
 
 
-@router.post("/economics/dataset-sale")
+@router.post("/economics/dataset-sale", dependencies=[Depends(require_api_key)])
 async def execute_dataset_sale(req: DatasetSaleRequest, db: AsyncSession = Depends(get_db)):
     """Execute a dataset sale event — distributes payouts to all contributors.
 

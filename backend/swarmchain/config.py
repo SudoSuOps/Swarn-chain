@@ -23,6 +23,15 @@ class Settings(BaseSettings):
     exploration_reward_pct: float = 0.20
     efficiency_reward_pct: float = 0.10
 
+    # Economics
+    spam_score_threshold: float = 0.02
+    spam_penalty_multiplier: float = 0.1
+    duplicate_decay_rate: float = 0.5
+    reputation_solve_boost: float = 0.05
+    reputation_spam_penalty: float = 0.1
+    reputation_decay_rate: float = 0.001
+    min_reputation_for_rewards: float = 0.1
+
     # API
     api_host: str = "0.0.0.0"
     api_port: int = 8000

@@ -18,6 +18,7 @@ from swarmchain.db.models import Block, Attempt
 from swarmchain.services.finality import FinalityService
 from swarmchain.services.reward_engine import RewardEngine
 from swarmchain.services.domain_validators import ValidatorRunner
+from swarmchain.services.reputation import ReputationService
 from swarmchain.config import get_settings
 
 logger = logging.getLogger("swarmchain.controller")
@@ -33,6 +34,7 @@ class BlockController:
         self.loop_interval = s.controller_loop_interval_sec
         self._running = False
         self.reward_engine = RewardEngine()
+        self.reputation_service = ReputationService()
 
     async def process_block(self, db: AsyncSession, block: Block) -> str | None:
         """Process a single open block — prune, promote, check finality.
@@ -117,6 +119,10 @@ class BlockController:
         # Compute rewards
         rewards = await self.reward_engine.compute_rewards(db, block)
         logger.info(f"Block {block.block_id}: {len(rewards)} rewards distributed")
+
+        # Update reputations
+        rep_updates = await self.reputation_service.update_after_block(db, block.block_id)
+        logger.info(f"Block {block.block_id}: {len(rep_updates)} node reputations updated")
 
         await db.flush()
 

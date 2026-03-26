@@ -171,6 +171,30 @@ class ValidatorDecision(Base):
     )
 
 
+class DatasetSale(Base):
+    """A dataset sale event — triggers payout distribution to contributors."""
+    __tablename__ = "dataset_sales"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    sale_id: Mapped[str] = mapped_column(String(32), unique=True, nullable=False, default=new_id)
+    block_id: Mapped[str] = mapped_column(String(32), ForeignKey("blocks.block_id"), nullable=False)
+    buyer: Mapped[str] = mapped_column(String(128), nullable=False)
+    sale_price: Mapped[float] = mapped_column(Float, nullable=False)
+    platform_fee_pct: Mapped[float] = mapped_column(Float, default=0.10)
+    platform_fee: Mapped[float] = mapped_column(Float, default=0.0)
+    distributable: Mapped[float] = mapped_column(Float, default=0.0)
+    payout_count: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(32), default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    payout_summary: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    __table_args__ = (
+        Index("ix_sales_block_id", "block_id"),
+        Index("ix_sales_status", "status"),
+    )
+
+
 class BlockArtifact(Base):
     """Sealed artifact generated when a block reaches finality."""
     __tablename__ = "block_artifacts"

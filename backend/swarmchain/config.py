@@ -36,7 +36,12 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     api_key: str = ""  # empty = no auth required (dev mode)
-    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    cors_origins: list[str] = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://swarmchain.eth.limo",
+        "https://block.swarmchain.eth.limo",
+    ]
 
     model_config = {"env_prefix": "SWARMCHAIN_", "env_file": ".env"}
 

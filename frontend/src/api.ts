@@ -1,4 +1,6 @@
-const BASE = "/api";
+// In production (IPFS via swarmchain.eth.limo), API lives at api.swarmchain.eth.limo
+// In dev, Vite proxies /api to localhost:8000
+const BASE = import.meta.env.VITE_API_URL || "/api";
 
 async function request<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`);

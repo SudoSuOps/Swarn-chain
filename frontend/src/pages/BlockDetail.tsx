@@ -7,11 +7,13 @@ import {
   fetchBlockRewards,
   fetchBlockArtifacts,
   fetchBlockLineage,
+  fetchBlockValidations,
   type Block,
   type Attempt,
   type Reward,
   type BlockArtifact,
   type LineageEdge,
+  type BlockValidations,
 } from "../api";
 import StatusBadge from "../components/StatusBadge";
 import ScoreBar from "../components/ScoreBar";
@@ -25,6 +27,7 @@ export default function BlockDetail() {
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [artifacts, setArtifacts] = useState<BlockArtifact[]>([]);
   const [lineage, setLineage] = useState<LineageEdge[]>([]);
+  const [validations, setValidations] = useState<BlockValidations | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedArtifact, setExpandedArtifact] = useState<string | null>(null);
@@ -38,14 +41,16 @@ export default function BlockDetail() {
       fetchBlockRewards(blockId).catch(() => []),
       fetchBlockArtifacts(blockId).catch(() => []),
       fetchBlockLineage(blockId).catch(() => []),
+      fetchBlockValidations(blockId).catch(() => null),
     ])
-      .then(([b, att, top, rew, art, lin]) => {
+      .then(([b, att, top, rew, art, lin, val]) => {
         setBlock(b);
         setAttempts(att);
         setTopAttempts(top);
         setRewards(rew);
         setArtifacts(art);
         setLineage(lin);
+        setValidations(val);
         setError(null);
       })
       .catch((e) => setError(e.message))
@@ -465,6 +470,131 @@ export default function BlockDetail() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Domain Validator Decisions */}
+      {validations && validations.decisions.length > 0 && (
+        <div className="bg-gray-800/40 border border-gray-700/50 rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-white mb-4">
+            Domain Validator Decisions
+          </h2>
+          <div className="space-y-4">
+            {validations.decisions.map((d, i) => (
+              <div
+                key={i}
+                className={`bg-gray-900/60 rounded-lg p-4 border ${
+                  d.verdict === "approved"
+                    ? "border-green-500/30"
+                    : d.verdict === "flagged"
+                    ? "border-amber-500/30"
+                    : d.verdict === "rejected"
+                    ? "border-red-500/30"
+                    : "border-blue-500/30"
+                }`}
+              >
+                {/* Validator header */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded text-xs font-semibold">
+                      {d.validator_name}
+                    </span>
+                    <span className="text-xs text-gray-500">{d.domain}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
+                        d.verdict === "approved"
+                          ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                          : d.verdict === "flagged"
+                          ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                          : d.verdict === "rejected"
+                          ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                          : "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                      }`}
+                    >
+                      {d.verdict}
+                    </span>
+                    <span className="text-xs text-gray-400 font-mono">
+                      {(d.confidence * 100).toFixed(1)}% confidence
+                    </span>
+                  </div>
+                </div>
+
+                {/* Confidence bar */}
+                <div className="w-full h-2 bg-gray-700 rounded-full mb-3">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      d.confidence >= 0.8
+                        ? "bg-green-500"
+                        : d.confidence >= 0.5
+                        ? "bg-amber-500"
+                        : "bg-red-500"
+                    }`}
+                    style={{ width: `${d.confidence * 100}%` }}
+                  />
+                </div>
+
+                {/* Critique */}
+                {d.critique && (
+                  <div className="mb-3">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1 font-semibold">
+                      Critique
+                    </p>
+                    <p className="text-sm text-gray-300">{d.critique}</p>
+                  </div>
+                )}
+
+                {/* Flags */}
+                {d.flags && d.flags.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1 font-semibold">
+                      Flags
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {d.flags.map((flag, fi) => (
+                        <span
+                          key={fi}
+                          className="px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded text-xs font-mono"
+                        >
+                          {flag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Repair Suggestion */}
+                {d.repair_suggestion && (
+                  <div className="mb-3">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1 font-semibold">
+                      Repair Suggestion
+                    </p>
+                    <p className="text-sm text-cyan-300 bg-cyan-500/5 border border-cyan-500/10 rounded-lg px-3 py-2">
+                      {d.repair_suggestion}
+                    </p>
+                  </div>
+                )}
+
+                {/* Objective anchor notice */}
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-700/30">
+                  <span className="text-[10px] text-gray-500">
+                    Objective score: {d.objective_score.toFixed(4)}
+                  </span>
+                  {d.objective_overridden && (
+                    <span className="px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded text-[10px] font-semibold">
+                      VALIDATOR OVERRIDDEN BY OBJECTIVE
+                    </span>
+                  )}
+                  {!d.objective_overridden && (
+                    <span className="text-[10px] text-gray-600">
+                      Objective verification is truth
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

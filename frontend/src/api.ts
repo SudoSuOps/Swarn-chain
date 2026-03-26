@@ -163,6 +163,39 @@ export function fetchNodeStats(id: string): Promise<NodeStats> {
   return request<NodeStats>(`/nodes/${id}/stats`);
 }
 
+// ─── Validator types ──────────────────────────────────────────
+
+export interface ValidatorDecision {
+  validator_name: string;
+  domain: string;
+  confidence: number;
+  verdict: "approved" | "flagged" | "rejected" | "needs_review" | "error";
+  critique: string | null;
+  flags: string[];
+  repair_suggestion: string | null;
+  objective_score: number;
+  objective_overridden: boolean;
+  raw_output: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface BlockValidations {
+  block_id: string;
+  domain: string;
+  has_validator: boolean;
+  decisions: ValidatorDecision[];
+}
+
+// ─── Validator endpoints ──────────────────────────────────────
+
+export function fetchBlockValidations(id: string): Promise<BlockValidations> {
+  return request<BlockValidations>(`/blocks/${id}/validations`);
+}
+
+export function fetchValidators(): Promise<{ validators: { domain: string; name: string }[] }> {
+  return request(`/validators`);
+}
+
 // ─── System endpoints ──────────────────────────────────────────
 
 export function fetchMetrics(): Promise<Metrics> {

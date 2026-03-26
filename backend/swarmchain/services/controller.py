@@ -17,6 +17,7 @@ from swarmchain.db.engine import async_session_factory
 from swarmchain.db.models import Block, Attempt
 from swarmchain.services.finality import FinalityService
 from swarmchain.services.reward_engine import RewardEngine
+from swarmchain.services.domain_validators import ValidatorRunner
 from swarmchain.config import get_settings
 
 logger = logging.getLogger("swarmchain.controller")
@@ -90,8 +91,25 @@ class BlockController:
         await db.flush()
 
     async def _finalize_block(self, db: AsyncSession, block: Block) -> None:
-        """Seal the block, compute rewards, generate artifacts."""
+        """Seal the block, run domain validator, compute rewards, generate artifacts."""
         logger.info(f"Finalizing block {block.block_id} — status: {block.status}")
+
+        # Run domain validator (if one exists for this domain)
+        winning_attempt = None
+        if block.winning_attempt_id:
+            result = await db.execute(
+                select(Attempt).where(Attempt.attempt_id == block.winning_attempt_id)
+            )
+            winning_attempt = result.scalar_one_or_none()
+
+        decision = await ValidatorRunner.run_validator(
+            db, block, winning_attempt, block.final_score or 0.0
+        )
+        if decision:
+            logger.info(
+                f"Block {block.block_id}: validator={decision.validator_name} "
+                f"verdict={decision.verdict} confidence={decision.confidence:.3f}"
+            )
 
         # Seal and generate artifact
         await FinalityService.seal_block(db, block)

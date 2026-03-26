@@ -146,6 +146,31 @@ class LineageEdge(Base):
     )
 
 
+class ValidatorDecision(Base):
+    """Domain validator output — validators assist convergence, never override truth."""
+    __tablename__ = "validator_decisions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    block_id: Mapped[str] = mapped_column(String(32), ForeignKey("blocks.block_id"), nullable=False)
+    attempt_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    validator_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    domain: Mapped[str] = mapped_column(String(64), nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    verdict: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    critique: Mapped[str | None] = mapped_column(Text, nullable=True)
+    flags: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    repair_suggestion: Mapped[str | None] = mapped_column(Text, nullable=True)
+    raw_output: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    objective_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    objective_overridden: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    __table_args__ = (
+        Index("ix_valdec_block_id", "block_id"),
+        Index("ix_valdec_validator", "validator_name"),
+    )
+
+
 class BlockArtifact(Base):
     """Sealed artifact generated when a block reaches finality."""
     __tablename__ = "block_artifacts"

@@ -383,6 +383,18 @@ class SwarmChainAPI:
         })
 
     async def open_block(self, task_id: str, task_payload: dict, max_attempts: int, metadata: dict | None = None) -> dict | None:
+        # SINGLE-CHAIN GUARD: refuse to open if any block is already open
+        existing = await self._request("GET", "/blocks", params={"status": "open", "limit": 1})
+        if existing and existing.get("total", 0) > 0:
+            open_blocks = existing.get("blocks", [])
+            log.warning(
+                "SINGLE-CHAIN VIOLATION: %d open block(s) exist. Closing orphans before opening new block.",
+                len(open_blocks),
+            )
+            for ob in open_blocks:
+                await self.finalize_block(ob["block_id"], force=True)
+                log.info("Closed orphan block %s", ob["block_id"][:12])
+
         return await self._request("POST", "/blocks/open", json={
             "task_id": task_id,
             "domain": "arc",

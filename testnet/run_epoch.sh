@@ -1,22 +1,25 @@
 #!/bin/bash
 cd /data2/swarmchain/testnet
-API_KEY=$(cat /tmp/swarmchain_api_key)
-
-echo "$(date) === EPOCH 3 START === blocks 300-600"
+echo "$(date) === EPOCH 2 STABILITY TEST === 5 bees → Zima controller"
 while true; do
-    python3 -u single_chain.py \
-        --api-url http://localhost:8080 \
-        --api-key "$API_KEY" \
-        --session-id epoch-3 \
-        --blocks 600 \
+    python3 -c "
+import httpx
+client = httpx.Client(timeout=30)
+while True:
+    resp = client.get('http://192.168.0.70:8080/blocks', params={'status':'open','limit':50})
+    blocks = resp.json().get('blocks',[])
+    if not blocks: break
+    for b in blocks:
+        client.post('http://192.168.0.70:8080/blocks/' + b['block_id'] + '/finalize', json={'force':True})
+" 2>/dev/null
+    timeout 120 python3 -u single_chain.py \
+        --api-url http://192.168.0.70:8080 \
+        --api-key "" \
+        --session-id epoch-2-stability \
+        --blocks 250 \
         --resume >> testnet.log 2>&1
-    
-    LAST=$(python3 -c "import json; d=json.load(open('single_chain_state.json')); print(d['last_completed_block'])" 2>/dev/null)
-    if [ "$LAST" -ge 600 ] 2>/dev/null; then
-        echo "$(date) === EPOCH 3 COMPLETE === block $LAST"
-        break
-    fi
-    echo "$(date) Restarting in 3s..." >> testnet.log
+    LAST=$(python3 -c "import json; print(json.load(open('single_chain_state.json'))['last_completed_block'])" 2>/dev/null)
+    [ "$LAST" -ge 250 ] 2>/dev/null && break
     sleep 3
 done
-echo "$(date) === COOLDOWN — extract data, analyze, adjust ==="
+echo "$(date) === EPOCH 2 COMPLETE ==="

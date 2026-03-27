@@ -55,11 +55,12 @@ HONEY_THRESHOLD = 0.95
 JELLY_THRESHOLD = 0.30
 
 # Model endpoint configuration
-XEON_FLEET_PORTS = list(range(9100, 9105))  # 5 xeon bees
+XEON_FLEET_PORTS = list(range(9100, 9105))  # 5 xeon bees (stability mode)
 WHALE_FLEET_PORTS = list(range(9200, 9205))  # 5 whale bees
 WHALE_HOST = "192.168.0.99"
 CAPITAL_9B_PORT = 8090
 BASE_9B_PORT = 8091
+GPU_4B_PORT = 8093
 WHALE_7B_HOST = "192.168.0.99"
 WHALE_7B_PORT = 8092
 SIGEDGE_HOST = "192.168.0.79"
@@ -69,6 +70,7 @@ SIGEDGE_PORT = 8085
 XEON_FLEET_BASE = "http://localhost"
 CAPITAL_9B_URL = f"http://localhost:{CAPITAL_9B_PORT}/v1/chat/completions"
 BASE_9B_URL = f"http://localhost:{BASE_9B_PORT}/v1/chat/completions"
+GPU_4B_URL = f"http://localhost:{GPU_4B_PORT}/v1/chat/completions"
 WHALE_7B_URL = f"http://{WHALE_7B_HOST}:{WHALE_7B_PORT}/v1/chat/completions"
 SIGEDGE_URL = f"http://{SIGEDGE_HOST}:{SIGEDGE_PORT}/v1/chat/completions"
 
@@ -466,6 +468,7 @@ class EnergyMeter:
         "qwen-4b-cpu": 10.0,   # SwarmBuddy on edge
         "capital-9b": 150.0,   # GPU inference (RTX PRO 6000 share)
         "base-9b": 150.0,      # Base 9B on RTX PRO 6000
+        "gpu-4b": 100.0,       # 4B on RTX PRO 6000 (lightest GPU model)
         "whale-7b": 200.0,     # 7B Instruct on RTX 3090
     }
 
@@ -478,7 +481,7 @@ class EnergyMeter:
         """
         power = EnergyMeter.POWER_DRAW.get(hardware_class, 10.0)
         energy = power * wall_seconds  # watt-seconds (joules)
-        is_gpu = hardware_class in ("capital-9b", "base-9b", "whale-7b")
+        is_gpu = hardware_class in ("capital-9b", "base-9b", "gpu-4b", "whale-7b")
 
         return {
             "energy_cost": round(energy, 4),
@@ -524,6 +527,8 @@ class WorkerDispatcher:
         temperature: float = 0.7,
     ) -> dict | None:
         """Dispatch a single inference call to a model endpoint and submit to SwarmChain.
+
+        Silently returns None if the model server is unreachable.
 
         Returns the attempt receipt dict or None on failure.
         """
@@ -724,6 +729,26 @@ class WorkerDispatcher:
             parent_attempt_id=parent_id,
         )
 
+    async def dispatch_gpu4b(
+        self,
+        block_id: str,
+        task: dict,
+        context: dict | None = None,
+        parent_id: str | None = None,
+    ) -> dict | None:
+        """Dispatch to GPU 4B — smallest GPU model, cheapest inference, ROI test."""
+        return await self.dispatch_single(
+            block_id=block_id,
+            task=task,
+            node_id="gpu-4b",
+            model_url=GPU_4B_URL,
+            model_name="qwen-4b-gpu",
+            hardware_class="gpu-4b",
+            strategy="gpu4b_compete",
+            context=context,
+            parent_attempt_id=parent_id,
+        )
+
     async def dispatch_atlas(
         self,
         block_id: str,
@@ -882,6 +907,7 @@ async def register_all_nodes(api: SwarmChainAPI):
 
     # Atlas 27B
     nodes.append(("base-9b", "gpu-compete", "rtx-pro-6000"))
+    nodes.append(("gpu-4b", "gpu-light", "rtx-pro-6000"))
     nodes.append(("whale-7b", "gpu-mid", "rtx-3090"))
 
     registered = 0
@@ -900,6 +926,56 @@ async def register_all_nodes(api: SwarmChainAPI):
 
     log.info("Registered %d/%d nodes", registered, len(nodes))
     return registered
+
+
+def detect_live_fleet() -> dict:
+    """Detect which model servers are actually running. Only call live ones."""
+    import httpx as _httpx
+    live = {"xeon_ports": [], "gpu_models": []}
+
+    # Check xeon bees
+    for port in XEON_FLEET_PORTS:
+        try:
+            resp = _httpx.get(f"http://localhost:{port}/health", timeout=2)
+            if resp.status_code == 200:
+                live["xeon_ports"].append(port)
+        except:
+            pass
+
+    # Check whale bees
+    for port in WHALE_FLEET_PORTS:
+        try:
+            resp = _httpx.get(f"http://{WHALE_HOST}:{port}/health", timeout=2)
+            if resp.status_code == 200:
+                live["xeon_ports"].append(port)  # treat as additional bee ports
+        except:
+            pass
+
+    # Check GPU models
+    gpu_checks = [
+        ("capital-9b", CAPITAL_9B_URL.replace("/v1/chat/completions", "/health")),
+        ("base-9b", BASE_9B_URL.replace("/v1/chat/completions", "/health")),
+        ("gpu-4b", GPU_4B_URL.replace("/v1/chat/completions", "/health")),
+        ("whale-7b", WHALE_7B_URL.replace("/v1/chat/completions", "/health")),
+    ]
+    for name, url in gpu_checks:
+        try:
+            resp = _httpx.get(url, timeout=2)
+            if resp.status_code == 200:
+                live["gpu_models"].append(name)
+        except:
+            pass
+
+    # Check sigedge
+    try:
+        resp = _httpx.get(SIGEDGE_URL.replace("/v1/chat/completions", "/health"), timeout=2)
+        if resp.status_code == 200:
+            live["xeon_ports"].append(("sigedge", SIGEDGE_PORT))
+    except:
+        pass
+
+    log.info("Fleet detected: %d bees, %d GPU models %s", len(live["xeon_ports"]), len(live["gpu_models"]), live["gpu_models"])
+    return live
 
 
 # ── Search Escalation Ladder ─────────────────────────────────────────────────
@@ -1067,6 +1143,9 @@ async def mine_block(
                 dispatcher.dispatch_whale7b(
                     block_id, task, context=context, parent_id=parent_id,
                 ),
+                dispatcher.dispatch_gpu4b(
+                    block_id, task, context=context, parent_id=parent_id,
+                ),
                 return_exceptions=True,
             )
             for r in gpu_race:
@@ -1217,7 +1296,7 @@ async def mine_block(
                     "phase": "phase4_specialist",
                     "event": "COMPLETE",
                     "attempts": len(phase4_receipts),
-                    "atlas_used": use_atlas,
+                    "gpus_used": use_gpus if 'use_gpus' in dir() else False,
                     "best_score": max((r.get("score", 0) for r in phase4_receipts), default=0),
                 })
 

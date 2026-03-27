@@ -1,14 +1,14 @@
 {
-  "session_id": "testnet-001",
-  "total_blocks": 118,
-  "blocks_solved": 100,
-  "blocks_exhausted": 18,
-  "solve_rate": 0.8475,
-  "total_attempts": 1057,
-  "total_energy": 642990.2339,
-  "wall_time_min": 0.89,
-  "attempts_per_solve": 10.57,
-  "energy_per_solve": 6429.9,
-  "cost_per_solve": 0.1786084,
-  "completed_at": "2026-03-27T03:06:46.133150+00:00"
+  "session_id": "epoch-2-tier2",
+  "total_blocks": 0,
+  "blocks_solved": 0,
+  "blocks_exhausted": 0,
+  "solve_rate": 0.0,
+  "total_attempts": 0,
+  "total_energy": 0.0,
+  "wall_time_min": 0.01,
+  "attempts_per_solve": 0.0,
+  "energy_per_solve": 0.0,
+  "cost_per_solve": 0.0,
+  "completed_at": "2026-03-27T18:14:35.111844+00:00"
 }

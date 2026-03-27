@@ -231,3 +231,69 @@ class ConvergenceMetric(Base):
         Index("ix_convergence_window", "window_end"),
         Index("ix_convergence_domain", "domain"),
     )
+
+
+class Epoch(Base):
+    """A sealed manufacturing epoch — a complete mining shift with full receipts."""
+    __tablename__ = "epochs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    epoch_id: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    tier: Mapped[str] = mapped_column(String(64), nullable=False, default="Tier 1 Deterministic")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="running")
+    block_range_start: Mapped[int] = mapped_column(Integer, nullable=False)
+    block_range_end: Mapped[int] = mapped_column(Integer, nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    sealed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Yield counts
+    honey_count: Mapped[int] = mapped_column(Integer, default=0)
+    jelly_count: Mapped[int] = mapped_column(Integer, default=0)
+    propolis_count: Mapped[int] = mapped_column(Integer, default=0)
+    total_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    total_energy: Mapped[float] = mapped_column(Float, default=0.0)
+    total_blocks: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Economics
+    cost_per_honey: Mapped[float] = mapped_column(Float, default=0.0)
+    attempts_per_honey: Mapped[float] = mapped_column(Float, default=0.0)
+    energy_per_honey: Mapped[float] = mapped_column(Float, default=0.0)
+    convergence_delta: Mapped[float] = mapped_column(Float, default=0.0)
+
+    # Receipts
+    manifest_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    findings: Mapped[list] = mapped_column(JSON, default=list)
+    recommendations: Mapped[list] = mapped_column(JSON, default=list)
+    silicon_ladder: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    metadata_: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True)
+
+    __table_args__ = (
+        Index("ix_epochs_epoch_id", "epoch_id"),
+        Index("ix_epochs_status", "status"),
+    )
+
+
+class EpochArtifact(Base):
+    """Individual yield item from an epoch — honey, jelly, or propolis."""
+    __tablename__ = "epoch_artifacts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    artifact_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    epoch_id: Mapped[str] = mapped_column(String(32), ForeignKey("epochs.epoch_id"), nullable=False)
+    artifact_type: Mapped[str] = mapped_column(String(32), nullable=False)  # honey | jelly | propolis
+    task_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    transform_type: Mapped[str] = mapped_column(String(64), nullable=False, default="unknown")
+    model_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    node_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    energy_cost: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    block_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    attempt_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    storage_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    __table_args__ = (
+        Index("ix_epochart_epoch_id", "epoch_id"),
+        Index("ix_epochart_type", "artifact_type"),
+        Index("ix_epochart_model", "model_name"),
+    )

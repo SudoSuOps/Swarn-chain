@@ -9,6 +9,8 @@ from .events import router as events_router
 from .health import router as health_router
 from .tasks import router as tasks_router
 from .anchors import router as anchors_router
+from .epochs import router as epochs_router
+from .energy import router as energy_router
 
 api_router = APIRouter()
 api_router.include_router(blocks_router, prefix="/blocks", tags=["blocks"])
@@ -21,3 +23,5 @@ api_router.include_router(events_router, tags=["events"])
 api_router.include_router(health_router, tags=["health"])
 api_router.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
 api_router.include_router(anchors_router, prefix="/anchors", tags=["anchors"])
+api_router.include_router(epochs_router, prefix="/epochs", tags=["epochs"])
+api_router.include_router(energy_router, prefix="/energy", tags=["energy"])

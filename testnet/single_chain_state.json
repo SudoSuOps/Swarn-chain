@@ -1,9 +1,9 @@
 {
-  "session_id": "testnet-001",
-  "last_completed_block": 183,
-  "blocks_solved": 154,
-  "blocks_exhausted": 29,
-  "total_attempts": 1312,
-  "total_energy": 820569.3532,
-  "saved_at": "2026-03-27T04:59:48.242659+00:00"
+  "session_id": "epoch-3",
+  "last_completed_block": 0,
+  "blocks_solved": 0,
+  "blocks_exhausted": 0,
+  "total_attempts": 0,
+  "total_energy": 0.0,
+  "saved_at": "2026-03-27T11:43:06.925685+00:00"
 }

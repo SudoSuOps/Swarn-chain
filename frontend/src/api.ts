@@ -216,6 +216,169 @@ export function fetchValidators(): Promise<{ validators: { domain: string; name:
   return request(`/validators`);
 }
 
+// ─── Epoch types ──────────────────────────────────────────────
+
+export interface Epoch {
+  epoch_id: string;
+  tier: string;
+  status: "open" | "sealed" | "failed";
+  honey_count: number;
+  jelly_count: number;
+  propolis_count: number;
+  cost_per_honey: number;
+  convergence_delta: number;
+  total_energy: number;
+  total_attempts: number;
+  started_at: string;
+  sealed_at: string | null;
+}
+
+export interface EpochDetail extends Epoch {
+  energy_per_honey: number;
+  attempts_per_honey: number;
+  findings: string[];
+  recommendations: string[];
+}
+
+export interface EpochArtifact {
+  artifact_id: string;
+  type: "honey" | "jelly" | "propolis";
+  task_id: string;
+  model: string;
+  node: string;
+  score: number;
+  energy: number;
+  transform: string;
+}
+
+export interface SiliconLadderEntry {
+  model_name: string;
+  hardware_class: string;
+  honey_count: number;
+  honey_rate: number;
+  energy_per_honey: number;
+  efficiency_score: number;
+  total_attempts: number;
+}
+
+// ─── Energy types ─────────────────────────────────────────────
+
+export interface CostFrontierPoint {
+  model: string;
+  cost_per_honey: number;
+  solve_rate: number;
+  honey_count: number;
+  total_attempts: number;
+  hardware_class: string;
+}
+
+export interface TransformStat {
+  transform: string;
+  attempts: number;
+  honey: number;
+  solve_rate: number;
+  avg_energy_per_honey: number;
+}
+
+export interface TrendPoint {
+  timestamp: string;
+  cost_per_honey: number;
+  solve_rate: number;
+  energy_total: number;
+}
+
+export interface LiveEnergy {
+  attempts_per_min: number;
+  energy_per_min: number;
+  active_nodes: number;
+  current_epoch: string;
+  uptime_sec: number;
+}
+
+// ─── Ledger types ─────────────────────────────────────────────
+
+export interface AnchorRecord {
+  window: number;
+  merkle_root: string;
+  cost_per_honey: number;
+  solve_rate: number;
+  anchored: boolean;
+  hedera_topic: string | null;
+  hedera_timestamp: string | null;
+  sealed_at: string;
+  total_honey: number;
+  total_energy: number;
+  convergence_delta: number;
+}
+
+export interface VerifyResult {
+  window: number;
+  verified: boolean;
+  merkle_root: string;
+  hedera_match: boolean;
+  computed_root: string;
+  message: string;
+}
+
+// ─── Epoch endpoints ──────────────────────────────────────────
+
+export async function fetchEpochs(): Promise<Epoch[]> {
+  const data = await request<{ epochs: Epoch[] }>(`/epochs`);
+  return data.epochs;
+}
+
+export function fetchEpoch(id: string): Promise<EpochDetail> {
+  return request<EpochDetail>(`/epochs/${id}`);
+}
+
+export async function fetchEpochYield(id: string, type?: string): Promise<EpochArtifact[]> {
+  const qs = type && type !== "all" ? `?type=${type}` : "";
+  const data = await request<{ artifacts: EpochArtifact[] }>(`/epochs/${id}/yield${qs}`);
+  return data.artifacts;
+}
+
+export async function fetchEpochLadder(id: string): Promise<SiliconLadderEntry[]> {
+  const data = await request<{ ladder: SiliconLadderEntry[] }>(`/epochs/${id}/silicon-ladder`);
+  return data.ladder;
+}
+
+// ─── Energy endpoints ─────────────────────────────────────────
+
+export async function fetchSiliconLadder(): Promise<SiliconLadderEntry[]> {
+  const data = await request<{ ladder: SiliconLadderEntry[] }>(`/energy/silicon-ladder`);
+  return data.ladder;
+}
+
+export async function fetchCostFrontier(): Promise<CostFrontierPoint[]> {
+  const data = await request<{ frontier: CostFrontierPoint[] }>(`/energy/cost-frontier`);
+  return data.frontier;
+}
+
+export async function fetchTransformEconomics(): Promise<TransformStat[]> {
+  const data = await request<{ transforms: TransformStat[] }>(`/energy/transforms`);
+  return data.transforms;
+}
+
+export async function fetchEnergyTrend(): Promise<TrendPoint[]> {
+  const data = await request<{ trend: TrendPoint[] }>(`/energy/trend`);
+  return data.trend;
+}
+
+export function fetchEnergyLive(): Promise<LiveEnergy> {
+  return request<LiveEnergy>(`/energy/live`);
+}
+
+// ─── Ledger endpoints ─────────────────────────────────────────
+
+export async function fetchAnchorTimeline(): Promise<AnchorRecord[]> {
+  const data = await request<{ anchors: AnchorRecord[] }>(`/anchors/timeline`);
+  return data.anchors;
+}
+
+export function fetchAnchorVerify(window: number): Promise<VerifyResult> {
+  return request<VerifyResult>(`/anchors/verify/${window}`);
+}
+
 // ─── System endpoints ──────────────────────────────────────────
 
 export function fetchMetrics(): Promise<Metrics> {

@@ -55,7 +55,9 @@ HONEY_THRESHOLD = 0.95
 JELLY_THRESHOLD = 0.30
 
 # Model endpoint configuration
-XEON_FLEET_PORTS = list(range(9100, 9125))  # 25 servers
+XEON_FLEET_PORTS = list(range(9100, 9105))  # 5 xeon bees
+WHALE_FLEET_PORTS = list(range(9200, 9205))  # 5 whale bees
+WHALE_HOST = "192.168.0.99"
 CAPITAL_9B_PORT = 8090
 BASE_9B_PORT = 8091
 WHALE_7B_HOST = "192.168.0.99"

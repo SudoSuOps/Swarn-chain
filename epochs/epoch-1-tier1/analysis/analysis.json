@@ -1,0 +1,257 @@
+{
+  "model_performance": {
+    "qwen-4b": {
+      "attempts": 2141,
+      "honey": 33,
+      "jelly": 1223,
+      "propolis": 885,
+      "energy": 162193.12300000014,
+      "honey_rate": 0.0154,
+      "energy_per_honey": 4914.94
+    },
+    "qwen-4b-edge": {
+      "attempts": 435,
+      "honey": 12,
+      "jelly": 227,
+      "propolis": 196,
+      "energy": 13151.490700000013,
+      "honey_rate": 0.0276,
+      "energy_per_honey": 1095.96
+    },
+    "capital-9b": {
+      "attempts": 783,
+      "honey": 190,
+      "jelly": 445,
+      "propolis": 148,
+      "energy": 2282130.908499997,
+      "honey_rate": 0.2427,
+      "energy_per_honey": 12011.22
+    },
+    "atlas-27b": {
+      "attempts": 9,
+      "honey": 0,
+      "jelly": 2,
+      "propolis": 7,
+      "energy": 107948.30479999998,
+      "honey_rate": 0.0,
+      "energy_per_honey": 107948.3
+    },
+    "base-9b": {
+      "attempts": 155,
+      "honey": 36,
+      "jelly": 58,
+      "propolis": 61,
+      "energy": 12744.160200000006,
+      "honey_rate": 0.2323,
+      "energy_per_honey": 354.0
+    },
+    "whale-7b": {
+      "attempts": 120,
+      "honey": 5,
+      "jelly": 65,
+      "propolis": 50,
+      "energy": 9751.407100000004,
+      "honey_rate": 0.0417,
+      "energy_per_honey": 1950.28
+    }
+  },
+  "transform_performance": {
+    "mirror_h": {
+      "attempts": 106,
+      "honey": 18,
+      "energy": 11034.345000000007,
+      "solve_rate": 0.1698,
+      "energy_per_honey": 613.02
+    },
+    "mirror_v": {
+      "attempts": 110,
+      "honey": 19,
+      "energy": 11156.8349,
+      "solve_rate": 0.1727,
+      "energy_per_honey": 587.2
+    },
+    "rotate_90": {
+      "attempts": 95,
+      "honey": 19,
+      "energy": 55488.346900000004,
+      "solve_rate": 0.2,
+      "energy_per_honey": 2920.44
+    },
+    "rotate_180": {
+      "attempts": 118,
+      "honey": 19,
+      "energy": 42708.64699999998,
+      "solve_rate": 0.161,
+      "energy_per_honey": 2247.82
+    },
+    "rotate_270": {
+      "attempts": 181,
+      "honey": 16,
+      "energy": 220326.19680000003,
+      "solve_rate": 0.0884,
+      "energy_per_honey": 13770.39
+    },
+    "transpose": {
+      "attempts": 73,
+      "honey": 15,
+      "energy": 28419.047699999996,
+      "solve_rate": 0.2055,
+      "energy_per_honey": 1894.6
+    },
+    "color_swap": {
+      "attempts": 125,
+      "honey": 13,
+      "energy": 50345.4325,
+      "solve_rate": 0.104,
+      "energy_per_honey": 3872.73
+    },
+    "invert": {
+      "attempts": 110,
+      "honey": 16,
+      "energy": 131080.19969999997,
+      "solve_rate": 0.1455,
+      "energy_per_honey": 8192.51
+    },
+    "fill_zeros": {
+      "attempts": 647,
+      "honey": 7,
+      "energy": 483282.2631000003,
+      "solve_rate": 0.0108,
+      "energy_per_honey": 69040.32
+    },
+    "scale_2x": {
+      "attempts": 73,
+      "honey": 11,
+      "energy": 32989.399399999995,
+      "solve_rate": 0.1507,
+      "energy_per_honey": 2999.04
+    },
+    "border_add": {
+      "attempts": 665,
+      "honey": 1,
+      "energy": 484886.7712999998,
+      "solve_rate": 0.0015,
+      "energy_per_honey": 484886.77
+    },
+    "crop_1": {
+      "attempts": 61,
+      "honey": 9,
+      "energy": 16150.437699999999,
+      "solve_rate": 0.1475,
+      "energy_per_honey": 1794.49
+    },
+    "shift_right": {
+      "attempts": 66,
+      "honey": 9,
+      "energy": 19296.811800000003,
+      "solve_rate": 0.1364,
+      "energy_per_honey": 2144.09
+    },
+    "shift_down": {
+      "attempts": 39,
+      "honey": 9,
+      "energy": 5375.9415,
+      "solve_rate": 0.2308,
+      "energy_per_honey": 597.33
+    },
+    "shift_left": {
+      "attempts": 67,
+      "honey": 9,
+      "energy": 12809.811199999998,
+      "solve_rate": 0.1343,
+      "energy_per_honey": 1423.31
+    },
+    "shift_up": {
+      "attempts": 22,
+      "honey": 9,
+      "energy": 3702.7201000000005,
+      "solve_rate": 0.4091,
+      "energy_per_honey": 411.41
+    },
+    "gravity_down": {
+      "attempts": 80,
+      "honey": 8,
+      "energy": 61830.53490000001,
+      "solve_rate": 0.1,
+      "energy_per_honey": 7728.82
+    },
+    "gravity_left": {
+      "attempts": 63,
+      "honey": 9,
+      "energy": 20768.1797,
+      "solve_rate": 0.1429,
+      "energy_per_honey": 2307.58
+    },
+    "flood_fill": {
+      "attempts": 510,
+      "honey": 4,
+      "energy": 601865.1392999998,
+      "solve_rate": 0.0078,
+      "energy_per_honey": 150466.28
+    },
+    "pattern_tile_2x2": {
+      "attempts": 44,
+      "honey": 6,
+      "energy": 40123.854799999994,
+      "solve_rate": 0.1364,
+      "energy_per_honey": 6687.31
+    },
+    "checkerboard": {
+      "attempts": 76,
+      "honey": 11,
+      "energy": 39765.482099999994,
+      "solve_rate": 0.1447,
+      "energy_per_honey": 3615.04
+    },
+    "diagonal_mirror": {
+      "attempts": 63,
+      "honey": 11,
+      "energy": 22021.2577,
+      "solve_rate": 0.1746,
+      "energy_per_honey": 2001.93
+    },
+    "color_remap": {
+      "attempts": 134,
+      "honey": 7,
+      "energy": 144777.29700000005,
+      "solve_rate": 0.0522,
+      "energy_per_honey": 20682.47
+    },
+    "max_pool_2x2": {
+      "attempts": 47,
+      "honey": 10,
+      "energy": 17879.115200000007,
+      "solve_rate": 0.2128,
+      "energy_per_honey": 1787.91
+    },
+    "sort_rows": {
+      "attempts": 44,
+      "honey": 10,
+      "energy": 6900.657000000001,
+      "solve_rate": 0.2273,
+      "energy_per_honey": 690.07
+    },
+    "mirror_h+transpose": {
+      "attempts": 7,
+      "honey": 1,
+      "energy": 5144.031300000001,
+      "solve_rate": 0.1429,
+      "energy_per_honey": 5144.03
+    },
+    "mirror_h+color_swap": {
+      "attempts": 17,
+      "honey": 0,
+      "energy": 17790.6387,
+      "solve_rate": 0.0,
+      "energy_per_honey": 17790.64
+    }
+  },
+  "total_attempts": 3643,
+  "total_honey": 276,
+  "total_jelly": 2020,
+  "total_propolis": 1347,
+  "honey_rate": 0.0758,
+  "attempts_per_honey": 13.2,
+  "total_energy": 2587919.3943,
+  "energy_per_honey": 9376.52
+}

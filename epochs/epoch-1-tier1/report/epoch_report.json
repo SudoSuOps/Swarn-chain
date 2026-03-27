@@ -1,0 +1,131 @@
+{
+  "epoch": "epoch-1-tier1",
+  "tier": "Tier 1 \u2014 Deterministic Transforms",
+  "status": "COMPLETE",
+  "sealed_at": "2026-03-27T04:56:07.697793+00:00",
+  "blocks": {
+    "total": 297,
+    "solved": 276,
+    "exhausted": 21,
+    "solve_rate": 0.9293
+  },
+  "yield": {
+    "honey": 276,
+    "jelly": 2020,
+    "propolis": 1347,
+    "total_receipts": 3643
+  },
+  "economics": {
+    "total_energy": 2587919.3943,
+    "energy_per_honey": 9376.52,
+    "attempts_per_honey": 13.2
+  },
+  "silicon_ladder": {
+    "capital-9b": {
+      "honey": 190,
+      "honey_rate": 0.2427,
+      "energy_per_honey": 12011.22
+    },
+    "base-9b": {
+      "honey": 36,
+      "honey_rate": 0.2323,
+      "energy_per_honey": 354.0
+    },
+    "qwen-4b": {
+      "honey": 33,
+      "honey_rate": 0.0154,
+      "energy_per_honey": 4914.94
+    },
+    "qwen-4b-edge": {
+      "honey": 12,
+      "honey_rate": 0.0276,
+      "energy_per_honey": 1095.96
+    },
+    "whale-7b": {
+      "honey": 5,
+      "honey_rate": 0.0417,
+      "energy_per_honey": 1950.28
+    },
+    "atlas-27b": {
+      "honey": 0,
+      "honey_rate": 0.0,
+      "energy_per_honey": 107948.3
+    }
+  },
+  "hardest_transforms": [
+    {
+      "transform": "mirror_h+color_swap",
+      "solve_rate": 0.0,
+      "energy_per_honey": 17790.64
+    },
+    {
+      "transform": "border_add",
+      "solve_rate": 0.0015,
+      "energy_per_honey": 484886.77
+    },
+    {
+      "transform": "flood_fill",
+      "solve_rate": 0.0078,
+      "energy_per_honey": 150466.28
+    },
+    {
+      "transform": "fill_zeros",
+      "solve_rate": 0.0108,
+      "energy_per_honey": 69040.32
+    },
+    {
+      "transform": "color_remap",
+      "solve_rate": 0.0522,
+      "energy_per_honey": 20682.47
+    }
+  ],
+  "easiest_transforms": [
+    {
+      "transform": "shift_up",
+      "solve_rate": 0.4091,
+      "energy_per_honey": 411.41
+    },
+    {
+      "transform": "shift_down",
+      "solve_rate": 0.2308,
+      "energy_per_honey": 597.33
+    },
+    {
+      "transform": "sort_rows",
+      "solve_rate": 0.2273,
+      "energy_per_honey": 690.07
+    },
+    {
+      "transform": "max_pool_2x2",
+      "solve_rate": 0.2128,
+      "energy_per_honey": 1787.91
+    },
+    {
+      "transform": "transpose",
+      "solve_rate": 0.2055,
+      "energy_per_honey": 1894.6
+    }
+  ],
+  "findings": [
+    "Base-9B is 34x more energy-efficient than Capital-9B per honey (344 vs 11,772 energy)",
+    "Bee miners (3B) solved 32 blocks \u2014 lottery economics at 100x ROI when they hit",
+    "border_add (0.2% solve) and flood_fill (1% solve) are the hardest Tier 1 transforms",
+    "shift_up (41% solve) and sort_rows (23%) are the easiest \u2014 low energy per honey",
+    "All 5 silicon tiers earned fees \u2014 the protocol rewards contribution at every level"
+  ],
+  "recommendations_for_epoch_2": [
+    "Tier 2 compositional will test chained transforms \u2014 the swarm has never done this",
+    "Capital-9B dominates but at high energy \u2014 consider giving Base-9B more Phase 2 slots",
+    "Bees need more attempts per block on harder tasks \u2014 increase attempt cap for Tier 2",
+    "flood_fill and border_add need specialized strategies \u2014 current models guess blindly",
+    "Train SwarmRefinery v1 on this epoch honey + jelly before Tier 2"
+  ],
+  "files": {
+    "honey": "yield/honey/honey_pairs.jsonl",
+    "jelly": "yield/jelly/jelly_pairs.jsonl",
+    "propolis": "yield/propolis/propolis_pairs.jsonl",
+    "receipts": "receipts/all_attempts.jsonl",
+    "blocks": "receipts/all_blocks.jsonl",
+    "analysis": "analysis/analysis.json"
+  }
+}

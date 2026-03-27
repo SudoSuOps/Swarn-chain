@@ -1,0 +1,9 @@
+{
+  "session_id": "testnet-001",
+  "last_completed_block": 180,
+  "blocks_solved": 151,
+  "blocks_exhausted": 29,
+  "total_attempts": 1297,
+  "total_energy": 806948.7443,
+  "saved_at": "2026-03-27T04:26:14.461508+00:00"
+}

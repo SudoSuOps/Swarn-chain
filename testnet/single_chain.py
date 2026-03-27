@@ -57,14 +57,17 @@ JELLY_THRESHOLD = 0.30
 # Model endpoint configuration
 XEON_FLEET_PORTS = list(range(9100, 9125))  # 25 servers
 CAPITAL_9B_PORT = 8090
-ATLAS_27B_PORT = 8091
+BASE_9B_PORT = 8091
+WHALE_7B_HOST = "192.168.0.99"
+WHALE_7B_PORT = 8092
 SIGEDGE_HOST = "192.168.0.79"
 SIGEDGE_PORT = 8085
 
 # Model endpoints — all OpenAI-compatible /v1/chat/completions
 XEON_FLEET_BASE = "http://localhost"
 CAPITAL_9B_URL = f"http://localhost:{CAPITAL_9B_PORT}/v1/chat/completions"
-ATLAS_27B_URL = f"http://localhost:{ATLAS_27B_PORT}/v1/chat/completions"
+BASE_9B_URL = f"http://localhost:{BASE_9B_PORT}/v1/chat/completions"
+WHALE_7B_URL = f"http://{WHALE_7B_HOST}:{WHALE_7B_PORT}/v1/chat/completions"
 SIGEDGE_URL = f"http://{SIGEDGE_HOST}:{SIGEDGE_PORT}/v1/chat/completions"
 
 # Convergence and anchoring intervals
@@ -448,7 +451,8 @@ class EnergyMeter:
         "xeon-72t": 10.0,      # Share of CPU per worker (TDP ~350W / 25 workers ≈ 14W, but idle mix)
         "qwen-4b-cpu": 10.0,   # SwarmBuddy on edge
         "capital-9b": 150.0,   # GPU inference (RTX PRO 6000 share)
-        "atlas-27b": 250.0,    # Full GPU (RTX PRO 6000)
+        "base-9b": 150.0,      # Base 9B on RTX PRO 6000
+        "whale-7b": 200.0,     # 7B Instruct on RTX 3090
     }
 
     @staticmethod
@@ -460,7 +464,7 @@ class EnergyMeter:
         """
         power = EnergyMeter.POWER_DRAW.get(hardware_class, 10.0)
         energy = power * wall_seconds  # watt-seconds (joules)
-        is_gpu = hardware_class in ("capital-9b", "atlas-27b")
+        is_gpu = hardware_class in ("capital-9b", "base-9b", "whale-7b")
 
         return {
             "energy_cost": round(energy, 4),
@@ -666,6 +670,46 @@ class WorkerDispatcher:
             temperature=0.5,
         )
 
+    async def dispatch_base9b(
+        self,
+        block_id: str,
+        task: dict,
+        context: dict | None = None,
+        parent_id: str | None = None,
+    ) -> dict | None:
+        """Dispatch to Base 9B competitor — same size as Capital, zero training."""
+        return await self.dispatch_single(
+            block_id=block_id,
+            task=task,
+            node_id="base-9b",
+            model_url=BASE_9B_URL,
+            model_name="base-9b",
+            hardware_class="base-9b",
+            strategy="base9b_compete",
+            context=context,
+            parent_attempt_id=parent_id,
+        )
+
+    async def dispatch_whale7b(
+        self,
+        block_id: str,
+        task: dict,
+        context: dict | None = None,
+        parent_id: str | None = None,
+    ) -> dict | None:
+        """Dispatch to Whale 7B challenger — smaller, cheaper, on 3090."""
+        return await self.dispatch_single(
+            block_id=block_id,
+            task=task,
+            node_id="whale-7b",
+            model_url=WHALE_7B_URL,
+            model_name="whale-7b",
+            hardware_class="whale-7b",
+            strategy="whale7b_challenge",
+            context=context,
+            parent_attempt_id=parent_id,
+        )
+
     async def dispatch_atlas(
         self,
         block_id: str,
@@ -823,7 +867,8 @@ async def register_all_nodes(api: SwarmChainAPI):
     nodes.append(("capital-9b", "gpu-mid", "rtx-pro-6000"))
 
     # Atlas 27B
-    nodes.append(("atlas-27b", "gpu-heavy", "rtx-pro-6000"))
+    nodes.append(("base-9b", "gpu-compete", "rtx-pro-6000"))
+    nodes.append(("whale-7b", "gpu-mid", "rtx-3090"))
 
     registered = 0
     for node_id, node_type, hw_class in nodes:
@@ -861,7 +906,7 @@ async def mine_block(
       Phase 1 (first 30%): Cheap deterministic search — xeon fleet + sigedge
       Phase 2 (next 30%): Compositional / structured — Capital-9B on promoted candidates
       Phase 3 (next 20%): Mutation / refinement — perturb best attempt
-      Phase 4 (final 20%): Specialist rescue — Atlas-27B (only if jelly exists)
+      Phase 4 (final 20%): GPU competition — Base-9B + Whale-7B + Capital-9B race (if jelly exists)
     """
     task = block_entry["task"]
     attempt_cap = block_entry["attempt_cap"]
@@ -993,28 +1038,32 @@ async def mine_block(
         phase2_remaining = min(phase2_budget, attempt_cap - len(all_receipts))
 
         if phase2_remaining > 0:
-            # Capital-9B gets priority with context from best attempts
-            capital_tasks = []
-            xeon_phase2_count = max(0, phase2_remaining - 3)  # Reserve 3 for Capital
+            # ALL 3 GPU models race in parallel — Capital-9B vs Base-9B vs Whale-7B
+            # Plus xeon fleet for volume. Everyone competes for the solve.
+            xeon_phase2_count = max(0, phase2_remaining - 3)  # Reserve 3 for GPU race
 
-            # Send Capital-9B attempts (up to 3 sequential with improving context)
-            capital_slots = min(3, phase2_remaining)
-            for _ in range(capital_slots):
-                if len(all_receipts) + len(phase2_receipts) >= attempt_cap:
-                    break
-                receipt = await dispatcher.dispatch_capital(
+            # GPU race: all 3 models get the same context, compete in parallel
+            gpu_race = await asyncio.gather(
+                dispatcher.dispatch_capital(
                     block_id, task, context=context, parent_attempt_id=parent_id,
-                )
-                if receipt:
-                    phase2_receipts.append(receipt)
-                    if receipt.get("score", 0) >= HONEY_THRESHOLD:
-                        break
-                    # Refresh context if this was better
-                    if receipt.get("score", 0) > best_score:
+                ),
+                dispatcher.dispatch_base9b(
+                    block_id, task, context=context, parent_id=parent_id,
+                ),
+                dispatcher.dispatch_whale7b(
+                    block_id, task, context=context, parent_id=parent_id,
+                ),
+                return_exceptions=True,
+            )
+            for r in gpu_race:
+                if isinstance(r, dict):
+                    phase2_receipts.append(r)
+                    if r.get("score", 0) > best_score:
                         context, parent_id = await get_best_context()
 
-            # Parallel xeon fleet for volume (remainder of phase 2)
-            if xeon_phase2_count > 0 and not any(r.get("score", 0) >= HONEY_THRESHOLD for r in phase2_receipts):
+            # Check if any GPU solved it
+            if not any(r.get("score", 0) >= HONEY_THRESHOLD for r in phase2_receipts if isinstance(r, dict)):
+                # Parallel xeon fleet for volume (remainder of phase 2)
                 remaining_slots = min(xeon_phase2_count, attempt_cap - len(all_receipts) - len(phase2_receipts))
                 if remaining_slots > 0:
                     xeon_receipts = await dispatcher.dispatch_xeon_fleet(
@@ -1107,16 +1156,25 @@ async def mine_block(
                 phase4_receipts: list[dict] = []
                 phase4_remaining = min(phase4_budget, attempt_cap - len(all_receipts))
 
-                # Only dispatch Atlas if jelly exists (score > 0.5)
-                use_atlas = best_score > 0.5
+                # Dispatch all GPU competitors in parallel — they race for the solve
+                use_gpus = best_score > 0.3  # lower threshold, let them compete
 
-                if phase4_remaining > 0 and use_atlas and context:
-                    # Atlas-27B gets single high-cost attempt
-                    receipt = await dispatcher.dispatch_atlas(
+                if phase4_remaining > 0 and use_gpus and context:
+                    # All 3 GPU models compete: Base 9B + Whale 7B + Capital-9B refine
+                    gpu_tasks = []
+                    gpu_tasks.append(dispatcher.dispatch_base9b(
+                        block_id, task, context=context, parent_id=parent_id,
+                    ))
+                    gpu_tasks.append(dispatcher.dispatch_whale7b(
+                        block_id, task, context=context, parent_id=parent_id,
+                    ))
+                    gpu_tasks.append(dispatcher.dispatch_capital(
                         block_id, task, context=context, parent_attempt_id=parent_id,
-                    )
-                    if receipt:
-                        phase4_receipts.append(receipt)
+                    ))
+                    gpu_results = await asyncio.gather(*gpu_tasks, return_exceptions=True)
+                    for r in gpu_results:
+                        if isinstance(r, dict):
+                            phase4_receipts.append(r)
 
                     # If Atlas didn't solve, spend remaining on Capital refinement
                     if not any(r.get("score", 0) >= HONEY_THRESHOLD for r in phase4_receipts):

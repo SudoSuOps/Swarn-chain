@@ -1,0 +1,24 @@
+{
+  "total_blocks": 677,
+  "solved": 46,
+  "exhausted": 631,
+  "solve_rate": 0.0679,
+  "total_attempts": 2499,
+  "tier_stats": {
+    "tier3": {
+      "solved": 13,
+      "exhausted": 187,
+      "attempts": 1173
+    },
+    "tier1": {
+      "solved": 33,
+      "exhausted": 244,
+      "attempts": 1311
+    },
+    "tier2": {
+      "solved": 0,
+      "exhausted": 200,
+      "attempts": 15
+    }
+  }
+}

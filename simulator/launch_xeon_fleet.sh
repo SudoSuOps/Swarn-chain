@@ -11,7 +11,7 @@ set -euo pipefail
 NUM_MINERS="${1:-20}"
 API_KEY="${2:?Usage: launch_xeon_fleet.sh <num_miners> <api_key>}"
 API_URL="${3:-http://165.227.109.67/api}"
-MODEL="/data2/swarmbuddy-1.5b-q8.gguf"
+MODEL="/data2/swarmrouter-3b-q4.gguf"
 BASE_PORT=9100
 THREADS_PER_MINER=3  # 20 miners × 3 threads = 60 of 72 threads
 

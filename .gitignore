@@ -59,3 +59,4 @@ alembic/versions/*.pyc
 *.bak
 *.tmp
 *.orig
+data/

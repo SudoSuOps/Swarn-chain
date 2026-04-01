@@ -140,4 +140,15 @@ make test
 
 ---
 
+## Swarm & Bee Repositories
+
+| Repo | Purpose |
+|------|---------|
+| **[Swarn-chain](https://github.com/SudoSuOps/Swarn-chain)** | SwarmChain implementation — backend, explorer, tests (this repo) |
+| **[glass-wall](https://github.com/SudoSuOps/glass-wall)** | Architecture vision, doctrine, operational philosophy |
+
+---
+
 *SwarmChain — where search becomes data, elimination becomes integrity, and finality creates value.*
+
+*Part of [Swarm & Bee](https://github.com/SudoSuOps/glass-wall) — Defendable Commercial Compute Intelligence Refinery*

@@ -146,6 +146,7 @@ make test
 |------|---------|
 | **[Swarn-chain](https://github.com/SudoSuOps/Swarn-chain)** | SwarmChain implementation — backend, explorer, tests (this repo) |
 | **[glass-wall](https://github.com/SudoSuOps/glass-wall)** | Architecture vision, doctrine, operational philosophy |
+| **[SwarmOS](https://github.com/SudoSuOps/SwarmOS)** | The operating system — flight sheets, GPU benchmarks, POJ, cost-to-mint |
 
 ---
 

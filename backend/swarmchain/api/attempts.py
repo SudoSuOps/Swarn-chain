@@ -1,6 +1,6 @@
 """Attempt API — submit, score, and inspect reasoning attempts."""
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from swarmchain.db.engine import get_db
 from swarmchain.db.models import Block, Attempt, Node
@@ -53,13 +53,25 @@ async def submit_attempt(req: AttemptSubmit, db: AsyncSession = Depends(get_db))
     )
     db.add(attempt)
 
-    # Update block counters
-    block.attempt_count += 1
-    block.total_energy += req.energy_cost
+    # Update block counters — atomic DB-level increment (no read-modify-write race)
+    await db.execute(
+        update(Block)
+        .where(Block.block_id == req.block_id)
+        .values(
+            attempt_count=Block.attempt_count + 1,
+            total_energy=Block.total_energy + req.energy_cost,
+        )
+    )
 
-    # Update node counters
-    node.total_attempts += 1
-    node.total_energy_used += req.energy_cost
+    # Update node counters — atomic DB-level increment
+    await db.execute(
+        update(Node)
+        .where(Node.node_id == req.node_id)
+        .values(
+            total_attempts=Node.total_attempts + 1,
+            total_energy_used=Node.total_energy_used + req.energy_cost,
+        )
+    )
 
     # Record lineage if parent exists
     if req.parent_attempt_id:

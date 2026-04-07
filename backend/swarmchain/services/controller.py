@@ -126,7 +126,9 @@ class BlockController:
         rewards = await self.reward_engine.compute_rewards(db, block)
         logger.info(f"Block {block.block_id}: {len(rewards)} rewards distributed")
 
-        # Compute cost-to-mint (non-critical — failures logged but don't block finalization)
+        # Post-seal subsystems: failures are logged loudly and tracked, not silently ignored
+        finalization_issues = []
+
         try:
             cost_record = await CostCalculator.compute(db, block)
             logger.info(
@@ -134,16 +136,16 @@ class BlockController:
                 f"honey={cost_record.honey_count} cost/honey=${cost_record.cost_per_honey:.4f}"
             )
         except Exception as e:
-            logger.error(f"Block {block.block_id}: cost calculation failed: {e}")
+            logger.error(f"Block {block.block_id}: COST CALCULATION FAILED: {e}", exc_info=True)
+            finalization_issues.append(f"cost_failed: {e}")
 
-        # Update reputations (non-critical)
         try:
             rep_updates = await self.reputation_service.update_after_block(db, block.block_id)
             logger.info(f"Block {block.block_id}: {len(rep_updates)} node reputations updated")
         except Exception as e:
-            logger.error(f"Block {block.block_id}: reputation update failed: {e}")
+            logger.error(f"Block {block.block_id}: REPUTATION UPDATE FAILED: {e}", exc_info=True)
+            finalization_issues.append(f"reputation_failed: {e}")
 
-        # Update convergence metrics (non-critical)
         try:
             convergence = await self.convergence_tracker.update(db, block.block_id)
             if convergence:
@@ -152,7 +154,14 @@ class BlockController:
                     f"cost/honey=${convergence.avg_cost_per_honey:.4f}"
                 )
         except Exception as e:
-            logger.error(f"Block {block.block_id}: convergence update failed: {e}")
+            logger.error(f"Block {block.block_id}: CONVERGENCE UPDATE FAILED: {e}", exc_info=True)
+            finalization_issues.append(f"convergence_failed: {e}")
+
+        if finalization_issues:
+            logger.warning(
+                "Block %s: sealed with %d post-seal failures: %s",
+                block.block_id, len(finalization_issues), "; ".join(finalization_issues),
+            )
 
         await db.flush()
 

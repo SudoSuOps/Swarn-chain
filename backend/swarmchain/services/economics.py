@@ -165,13 +165,19 @@ class EconomicsEngine:
                 node.total_rewards += final_payout
 
         # Normalize if over-distributed (due to rep bonuses)
+        # Use Decimal arithmetic to prevent cumulative rounding errors
         if total_distributed > distributable and total_distributed > 0:
-            scale = distributable / total_distributed
+            from decimal import Decimal, ROUND_HALF_UP
+            scale = Decimal(str(distributable)) / Decimal(str(total_distributed))
+            total_distributed = 0.0
             for r in payout_rewards:
-                r.reward_amount *= scale
+                precise = float((Decimal(str(r.reward_amount)) * scale).quantize(
+                    Decimal("0.0001"), rounding=ROUND_HALF_UP))
+                r.reward_amount = precise
+                total_distributed += precise
             for p in payouts:
-                p["final_payout"] *= scale
-            total_distributed = distributable
+                p["final_payout"] = float((Decimal(str(p["final_payout"])) * scale).quantize(
+                    Decimal("0.0001"), rounding=ROUND_HALF_UP))
 
         # Create the sale record
         sale = DatasetSale(

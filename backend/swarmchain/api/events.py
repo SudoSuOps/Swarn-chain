@@ -1,6 +1,6 @@
 """Event stream API — every action in the swarm produces a receipt."""
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from swarmchain.db.engine import get_db
@@ -17,6 +17,15 @@ class EventSubmit(BaseModel):
     domain: str | None = None
     energy_cost: float = 0.0
     payload: dict = {}
+
+    @field_validator("payload")
+    @classmethod
+    def payload_size_limit(cls, v):
+        # Reject payloads > 64KB when serialized
+        import json
+        if len(json.dumps(v, default=str)) > 65536:
+            raise ValueError("Event payload exceeds 64KB limit")
+        return v
 
 
 @router.post("/events", dependencies=[Depends(require_api_key)])
@@ -37,7 +46,7 @@ async def log_event(req: EventSubmit, db: AsyncSession = Depends(get_db)):
 
 @router.get("/events/stream")
 async def event_stream(
-    limit: int = 50,
+    limit: int = Query(default=50, ge=1, le=500),
     event_type: str | None = None,
     source_node: str | None = None,
     db: AsyncSession = Depends(get_db),

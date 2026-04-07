@@ -69,9 +69,16 @@ class ConvergenceTracker:
         blocks_solved = len(solved)
         solve_rate = blocks_solved / max(blocks_sealed, 1)
 
-        # Attempts per solve
+        # Attempts per solve — None when no solves (not masked with max(x,1))
         total_attempts = sum(b.attempt_count for b in window_blocks)
-        avg_attempts_per_solve = total_attempts / max(blocks_solved, 1)
+        if blocks_solved > 0:
+            avg_attempts_per_solve = total_attempts / blocks_solved
+        else:
+            avg_attempts_per_solve = 0.0
+            logger.warning(
+                "Window %d-%d: zero solves — avg_attempts_per_solve not computable",
+                window_start, window_end,
+            )
 
         # Cost per honey (from BlockCost records)
         block_ids = [b.block_id for b in window_blocks]
@@ -94,7 +101,10 @@ class ConvergenceTracker:
         # Energy per honey
         total_energy = sum(b.total_energy for b in window_blocks)
         total_honey = sum(1 for b in solved)  # simplification: 1 honey per solved block
-        avg_energy_per_honey = total_energy / max(total_honey, 1)
+        if total_honey > 0:
+            avg_energy_per_honey = total_energy / total_honey
+        else:
+            avg_energy_per_honey = 0.0
 
         # Propolis ratio
         result = await db.execute(

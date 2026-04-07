@@ -26,38 +26,42 @@ router = APIRouter()
 
 @router.get("/silicon-ladder")
 async def silicon_ladder(db: AsyncSession = Depends(get_db)):
-    """Query all nodes, join with their attempts, compute efficiency metrics.
-
-    Returns nodes sorted by honey_per_energy descending (most efficient first).
-    """
-    result = await db.execute(
-        select(Node).where(Node.active == True)
+    """All nodes ranked by honey efficiency. Uses aggregate queries (no N+1)."""
+    # Batch: attempt stats per node (single query)
+    att_stats = await db.execute(
+        select(
+            Attempt.node_id,
+            func.count(Attempt.id).label("total_attempts"),
+            func.sum(Attempt.energy_cost).label("total_energy"),
+            func.sum(func.cast(Attempt.score >= 0.9, Attempt.id.type)).label("total_honey"),
+        )
+        .group_by(Attempt.node_id)
     )
+    att_by_node = {row.node_id: row for row in att_stats.all()}
+
+    # Batch: reward totals per node (single query)
+    rew_stats = await db.execute(
+        select(Reward.node_id, func.sum(Reward.reward_amount).label("total_rewards"))
+        .group_by(Reward.node_id)
+    )
+    rew_by_node = {row.node_id: float(row.total_rewards or 0) for row in rew_stats.all()}
+
+    # Nodes
+    result = await db.execute(select(Node).where(Node.active == True))
     nodes = result.scalars().all()
 
     ladder = []
     for node in nodes:
-        # Get attempts for this node
-        att_result = await db.execute(
-            select(Attempt).where(Attempt.node_id == node.node_id)
-        )
-        attempts = att_result.scalars().all()
-
-        total_attempts = len(attempts)
-        total_energy = sum(a.energy_cost for a in attempts)
-        total_honey = sum(1 for a in attempts if a.score >= 0.9)
-
-        # Get total rewards
-        rew_result = await db.execute(
-            select(func.sum(Reward.reward_amount))
-            .where(Reward.node_id == node.node_id)
-        )
-        total_rewards = rew_result.scalar() or 0.0
+        att = att_by_node.get(node.node_id)
+        total_attempts = int(att.total_attempts) if att else 0
+        total_energy = float(att.total_energy or 0) if att else 0.0
+        total_honey = int(att.total_honey or 0) if att else 0
+        total_rewards = rew_by_node.get(node.node_id, 0.0)
 
         honey_rate = total_honey / max(total_attempts, 1)
         avg_energy_per_honey = total_energy / max(total_honey, 1)
         honey_per_energy = total_honey / max(total_energy, 0.001)
-        roi = float(total_rewards) / max(total_energy, 0.001)
+        roi = total_rewards / max(total_energy, 0.001)
 
         ladder.append({
             "node_id": node.node_id,
@@ -69,18 +73,13 @@ async def silicon_ladder(db: AsyncSession = Depends(get_db)):
             "total_energy": round(total_energy, 4),
             "avg_energy_per_honey": round(avg_energy_per_honey, 4),
             "honey_per_energy": round(honey_per_energy, 6),
-            "total_rewards": round(float(total_rewards), 4),
+            "total_rewards": round(total_rewards, 4),
             "roi": round(roi, 4),
             "reputation_score": round(node.reputation_score, 4),
         })
 
-    # Sort by efficiency (honey_per_energy desc)
     ladder.sort(key=lambda x: x["honey_per_energy"], reverse=True)
-
-    return {
-        "silicon_ladder": ladder,
-        "total_nodes": len(ladder),
-    }
+    return {"silicon_ladder": ladder, "total_nodes": len(ladder)}
 
 
 # ---------------------------------------------------------------------------
@@ -88,14 +87,17 @@ async def silicon_ladder(db: AsyncSession = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @router.get("/cost-frontier")
-async def cost_frontier(db: AsyncSession = Depends(get_db)):
+async def cost_frontier(
+    limit: int = Query(default=50000, ge=1, le=100000),
+    db: AsyncSession = Depends(get_db),
+):
     """For each model_name, compute avg_cost_per_honey and solve_rate.
 
     Returns array for scatter plot: {model, cost_per_honey, solve_rate, attempts, honey_count}.
     Model is derived from attempt metadata or node metadata/node_id.
     """
-    # Fetch all attempts
-    result = await db.execute(select(Attempt))
+    # Fetch attempts with bound
+    result = await db.execute(select(Attempt).limit(limit))
     attempts = result.scalars().all()
 
     # Build a node_id -> model_name cache
@@ -153,18 +155,21 @@ async def cost_frontier(db: AsyncSession = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @router.get("/transforms")
-async def transform_stats(db: AsyncSession = Depends(get_db)):
+async def transform_stats(
+    limit: int = Query(default=50000, ge=1, le=100000),
+    db: AsyncSession = Depends(get_db),
+):
     """For each transform type (parsed from task_id), compute performance stats.
 
     Transform type is extracted from the task_id field of blocks (e.g., "mirror_h",
     "rotate_90", etc.). Falls back to the full task_id if no separator found.
     """
-    # Fetch all blocks with their attempts
-    result = await db.execute(select(Block))
+    # Fetch blocks and attempts with bounds
+    result = await db.execute(select(Block).limit(limit))
     blocks = result.scalars().all()
     block_task_map = {b.block_id: b.task_id for b in blocks}
 
-    result = await db.execute(select(Attempt))
+    result = await db.execute(select(Attempt).limit(limit))
     attempts = result.scalars().all()
 
     # Group by transform type

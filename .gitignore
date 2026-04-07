@@ -60,3 +60,5 @@ alembic/versions/*.pyc
 *.tmp
 *.orig
 data/
+.gitnexus
+node_modules/
